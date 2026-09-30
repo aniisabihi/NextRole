@@ -290,15 +290,6 @@ export function ApplicationDetailPage() {
     );
   }
 
-  if (appQuery.isLoading || !form) {
-    return (
-      <main className="mx-auto max-w-2xl p-6">
-        <AppNav />
-        <p className="text-sm text-neutral-600">Loading…</p>
-      </main>
-    );
-  }
-
   if (appQuery.isError) {
     return (
       <main className="mx-auto max-w-2xl p-6">
@@ -313,6 +304,15 @@ export function ApplicationDetailPage() {
             Back to list
           </Link>
         </p>
+      </main>
+    );
+  }
+
+  if (appQuery.isLoading || !form) {
+    return (
+      <main className="mx-auto max-w-2xl p-6">
+        <AppNav />
+        <p className="text-sm text-neutral-600">Loading…</p>
       </main>
     );
   }
