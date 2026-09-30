@@ -159,41 +159,43 @@ export async function rotateSession(
   const graceMs = env.REFRESH_REUSE_GRACE_MS;
 
   // Commit family revoke before throwing — AppError inside $transaction rolls back.
-  const outcome: RotateOutcome = await prisma.$transaction(async (tx) => {
-    const row = await selectByHashForUpdate(tx, tokenHash);
+  const outcome = await prisma.$transaction(
+    async (tx: Tx): Promise<RotateOutcome> => {
+      const row = await selectByHashForUpdate(tx, tokenHash);
 
-    if (!row) {
-      return { kind: "unauthorized" };
-    }
-
-    const inGrace =
-      row.revokedAt != null &&
-      row.replacedByTokenId != null &&
-      now.getTime() - row.revokedAt.getTime() <= graceMs;
-
-    if (row.expiresAt.getTime() <= now.getTime() && !inGrace) {
-      return { kind: "unauthorized" };
-    }
-
-    if (row.revokedAt != null) {
-      if (inGrace) {
-        try {
-          const tip = await walkToTip(tx, row.replacedByTokenId!);
-          const newRaw = await mintSuccessor(tx, tip, now);
-          return { kind: "ok", raw: newRaw, userId: tip.userId };
-        } catch {
-          await revokeFamily(tx, row.familyId, now);
-          return { kind: "reuse" };
-        }
+      if (!row) {
+        return { kind: "unauthorized" };
       }
 
-      await revokeFamily(tx, row.familyId, now);
-      return { kind: "reuse" };
-    }
+      const inGrace =
+        row.revokedAt != null &&
+        row.replacedByTokenId != null &&
+        now.getTime() - row.revokedAt.getTime() <= graceMs;
 
-    const newRaw = await mintSuccessor(tx, row, now);
-    return { kind: "ok", raw: newRaw, userId: row.userId };
-  });
+      if (row.expiresAt.getTime() <= now.getTime() && !inGrace) {
+        return { kind: "unauthorized" };
+      }
+
+      if (row.revokedAt != null) {
+        if (inGrace) {
+          try {
+            const tip = await walkToTip(tx, row.replacedByTokenId!);
+            const newRaw = await mintSuccessor(tx, tip, now);
+            return { kind: "ok", raw: newRaw, userId: tip.userId };
+          } catch {
+            await revokeFamily(tx, row.familyId, now);
+            return { kind: "reuse" };
+          }
+        }
+
+        await revokeFamily(tx, row.familyId, now);
+        return { kind: "reuse" };
+      }
+
+      const newRaw = await mintSuccessor(tx, row, now);
+      return { kind: "ok", raw: newRaw, userId: row.userId };
+    },
+  );
 
   if (outcome.kind === "unauthorized") {
     throw new AppError("UNAUTHORIZED", 401, "Unauthorized");

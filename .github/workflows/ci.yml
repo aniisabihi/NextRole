@@ -33,6 +33,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run db:migrate -w apps/api
+      - run: npx prisma generate
+        working-directory: apps/api
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test -w apps/api
