@@ -80,7 +80,7 @@ On refresh rotation, a just-revoked token may still mint a successor within `REF
 
 | Script | What |
 | --- | --- |
-| `npm run dev` | API + web watch (workspaces) |
+| `npm run dev` | API (:3000) + web (:5173) in parallel via concurrently |
 | `npm run build` | Build all workspaces |
 | `npm run test` | API Vitest suite |
 | `npm run lint` | ESLint (api + web) |
