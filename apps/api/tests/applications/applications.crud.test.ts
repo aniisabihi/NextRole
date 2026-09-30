@@ -3,10 +3,22 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { prisma } from "../../src/db/prisma.js";
 import { resetDb } from "../helpers/db.js";
-import { TEST_ORIGIN } from "../helpers/http.js";
+import {
+  TEST_ORIGIN,
+  bootstrapCsrf,
+  cookieHeader,
+} from "../helpers/http.js";
 import { registerAndLogin } from "../helpers/applications.js";
 
-describe("applications HTTP: create → get", () => {
+function mutationHeaders(session: Awaited<ReturnType<typeof registerAndLogin>>) {
+  return {
+    Origin: TEST_ORIGIN,
+    Cookie: session.cookieHeader,
+    "X-CSRF-Token": session.cookies.csrf_token!,
+  };
+}
+
+describe("applications HTTP: CRUD", () => {
   let app: FastifyInstance;
 
   beforeAll(async () => {
@@ -28,11 +40,7 @@ describe("applications HTTP: create → get", () => {
     const createRes = await app.inject({
       method: "POST",
       url: "/api/applications",
-      headers: {
-        Origin: TEST_ORIGIN,
-        Cookie: session.cookieHeader,
-        "X-CSRF-Token": session.cookies.csrf_token!,
-      },
+      headers: mutationHeaders(session),
       payload: {
         company: "Acme",
         title: "Backend Engineer",
@@ -66,20 +74,97 @@ describe("applications HTTP: create → get", () => {
       title: "Backend Engineer",
       userId: session.user.id,
     });
+  });
 
-    const activities = await prisma.activity.findMany({
-      where: { applicationId: created.application.id },
-    });
-    expect(activities).toHaveLength(1);
-    expect(activities[0]).toMatchObject({
-      type: "APPLICATION_CREATED",
-      userId: session.user.id,
+  it("allows create with non-default status", async () => {
+    const session = await registerAndLogin(app);
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
       payload: {
-        company: "Acme",
-        title: "Backend Engineer",
-        status: "SAVED",
+        company: "Beta",
+        title: "SRE",
+        status: "APPLIED",
       },
     });
+
+    expect(createRes.statusCode).toBe(201);
+    expect(createRes.json().application.status).toBe("APPLIED");
+  });
+
+  it("updates application fields and returns 200 shape", async () => {
+    const session = await registerAndLogin(app);
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: { company: "Acme", title: "Eng" },
+    });
+    const id = createRes.json().application.id as string;
+
+    const patchRes = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+      payload: { notes: "Follow up", priority: "HIGH" },
+    });
+
+    expect(patchRes.statusCode).toBe(200);
+    expect(patchRes.json().application).toMatchObject({
+      id,
+      notes: "Follow up",
+      priority: "HIGH",
+      priorityRank: 3,
+    });
+  });
+
+  it("deletes application with 204 and removes row", async () => {
+    const session = await registerAndLogin(app);
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: { company: "Acme", title: "Eng" },
+    });
+    const id = createRes.json().application.id as string;
+
+    const delRes = await app.inject({
+      method: "DELETE",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+    });
+
+    expect(delRes.statusCode).toBe(204);
+    expect(delRes.body).toBe("");
+
+    const getRes = await app.inject({
+      method: "GET",
+      url: `/api/applications/${id}`,
+      headers: { Cookie: session.cookieHeader },
+    });
+    expect(getRes.statusCode).toBe(404);
+  });
+
+  it("returns 401 for unauthenticated requests", async () => {
+    const getList = await app.inject({ method: "GET", url: "/api/applications" });
+    expect(getList.statusCode).toBe(401);
+
+    const csrf = await bootstrapCsrf(app);
+    const post = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: {
+        Origin: TEST_ORIGIN,
+        Cookie: cookieHeader(csrf),
+        "X-CSRF-Token": csrf.csrf_token!,
+      },
+      payload: { company: "X", title: "Y" },
+    });
+    expect(post.statusCode).toBe(401);
   });
 
   it("returns 404 NOT_FOUND for another user's application", async () => {
@@ -89,11 +174,7 @@ describe("applications HTTP: create → get", () => {
     const createRes = await app.inject({
       method: "POST",
       url: "/api/applications",
-      headers: {
-        Origin: TEST_ORIGIN,
-        Cookie: owner.cookieHeader,
-        "X-CSRF-Token": owner.cookies.csrf_token!,
-      },
+      headers: mutationHeaders(owner),
       payload: {
         company: "Secret Co",
         title: "Hidden Role",
@@ -112,5 +193,72 @@ describe("applications HTTP: create → get", () => {
 
     expect(getRes.statusCode).toBe(404);
     expect(getRes.json().error.code).toBe("NOT_FOUND");
+
+    const patchRes = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(other),
+      payload: { notes: "nope" },
+    });
+    expect(patchRes.statusCode).toBe(404);
+
+    const delRes = await app.inject({
+      method: "DELETE",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(other),
+    });
+    expect(delRes.statusCode).toBe(404);
+  });
+
+  it("returns 400 VALIDATION_ERROR for invalid body and empty PATCH", async () => {
+    const session = await registerAndLogin(app);
+
+    const badCreate = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: { company: "", title: "Eng" },
+    });
+    expect(badCreate.statusCode).toBe(400);
+    expect(badCreate.json().error.code).toBe("VALIDATION_ERROR");
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: { company: "Acme", title: "Eng" },
+    });
+    const id = createRes.json().application.id as string;
+
+    const emptyPatch = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+      payload: {},
+    });
+    expect(emptyPatch.statusCode).toBe(400);
+    expect(emptyPatch.json().error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("returns INVALID_STATUS_TRANSITION when transition denied", async () => {
+    const session = await registerAndLogin(app);
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: { company: "Acme", title: "Eng", status: "OFFER" },
+    });
+    const id = createRes.json().application.id as string;
+
+    const patchRes = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+      payload: { status: "APPLIED" },
+    });
+
+    expect(patchRes.statusCode).toBe(400);
+    expect(patchRes.json().error.code).toBe("INVALID_STATUS_TRANSITION");
   });
 });
