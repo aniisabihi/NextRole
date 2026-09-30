@@ -1,6 +1,9 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1** ships a runnable npm-workspaces monorepo with Fastify cookie auth (Argon2id, refresh rotation + family reuse detection, CSRF, rate limits), a React/Vite login shell, Postgres via Prisma, Docker Compose (Postgres + Redis), Vitest, CI, and this README — then stops. No applications domain yet.
+Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (next):** applications core — see `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+
+Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
+
 
 ## Architecture
 
@@ -38,23 +41,23 @@ npm run dev
 
 ## Environment
 
-| Variable | Required | Default | Notes |
-| --- | --- | --- | --- |
-| `NODE_ENV` | yes | — | `development` \| `test` \| `production` |
-| `PORT` | no | `3000` | API listen port |
-| `DATABASE_URL` | yes | — | Prisma Postgres URL |
-| `JWT_ACCESS_SECRET` | yes | — | min 32 chars |
-| `REFRESH_TOKEN_PEPPER` | yes | — | min 32 chars; hashes refresh tokens at rest |
-| `CORS_ORIGIN` | yes | — | comma-separated origins; credentials enabled |
-| `COOKIE_SECURE` | yes | — | `true` / `false` |
-| `ACCESS_TOKEN_TTL_SECONDS` | no | `900` | access JWT / cookie maxAge |
-| `REFRESH_TOKEN_TTL_SECONDS` | no | `604800` | refresh + CSRF cookie maxAge (7d) |
-| `REFRESH_REUSE_GRACE_MS` | no | `10000` | concurrent refresh grace window |
-| `AUTH_RATE_LIMIT_MAX` | no | `20` | register/login/refresh |
-| `AUTH_RATE_LIMIT_WINDOW_MS` | no | `60000` | rate-limit window |
-| `ARGON2_MEMORY_COST` | no | `65536` | KiB |
-| `ARGON2_TIME_COST` | no | `3` | iterations |
-| `ARGON2_PARALLELISM` | no | `1` | threads |
+| Variable                    | Required | Default  | Notes                                        |
+| --------------------------- | -------- | -------- | -------------------------------------------- |
+| `NODE_ENV`                  | yes      | —        | `development` \| `test` \| `production`      |
+| `PORT`                      | no       | `3000`   | API listen port                              |
+| `DATABASE_URL`              | yes      | —        | Prisma Postgres URL                          |
+| `JWT_ACCESS_SECRET`         | yes      | —        | min 32 chars                                 |
+| `REFRESH_TOKEN_PEPPER`      | yes      | —        | min 32 chars; hashes refresh tokens at rest  |
+| `CORS_ORIGIN`               | yes      | —        | comma-separated origins; credentials enabled |
+| `COOKIE_SECURE`             | yes      | —        | `true` / `false`                             |
+| `ACCESS_TOKEN_TTL_SECONDS`  | no       | `900`    | access JWT / cookie maxAge                   |
+| `REFRESH_TOKEN_TTL_SECONDS` | no       | `604800` | refresh + CSRF cookie maxAge (7d)            |
+| `REFRESH_REUSE_GRACE_MS`    | no       | `10000`  | concurrent refresh grace window              |
+| `AUTH_RATE_LIMIT_MAX`       | no       | `20`     | register/login/refresh                       |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | no       | `60000`  | rate-limit window                            |
+| `ARGON2_MEMORY_COST`        | no       | `65536`  | KiB                                          |
+| `ARGON2_TIME_COST`          | no       | `3`      | iterations                                   |
+| `ARGON2_PARALLELISM`        | no       | `1`      | threads                                      |
 
 Copy `.env.example` → `apps/api/.env` for local defaults (Prisma, Vitest setup, and `server.ts` all read that file; a root `.env` is only a fallback for the API process).
 
@@ -78,28 +81,28 @@ On refresh rotation, a just-revoked token may still mint a successor within `REF
 
 ## Scripts
 
-| Script | What |
-| --- | --- |
-| `npm run dev` | API (:3000) + web (:5173) in parallel via concurrently |
-| `npm run build` | Build all workspaces |
-| `npm run test` | API Vitest suite |
-| `npm run lint` | ESLint (api + web) |
-| `npm run typecheck` | `tsc` in workspaces |
-| `npm run format` | Prettier write |
-| `npm run db:migrate` | `prisma migrate deploy` (api) |
-| `npm run db:seed` | Seed stub (no Phase 1 data) |
+| Script               | What                                                   |
+| -------------------- | ------------------------------------------------------ |
+| `npm run dev`        | API (:3000) + web (:5173) in parallel via concurrently |
+| `npm run build`      | Build all workspaces                                   |
+| `npm run test`       | API Vitest suite                                       |
+| `npm run lint`       | ESLint (api + web)                                     |
+| `npm run typecheck`  | `tsc` in workspaces                                    |
+| `npm run format`     | Prettier write                                         |
+| `npm run db:migrate` | `prisma migrate deploy` (api)                          |
+| `npm run db:seed`    | Seed stub (no Phase 1 data)                            |
 
 ## API (Phase 1)
 
-| Method | Path | Notes |
-| --- | --- | --- |
-| `GET` | `/api/health` | liveness |
-| `GET` | `/api/auth/csrf` | ensures CSRF cookie |
+| Method | Path                 | Notes                                         |
+| ------ | -------------------- | --------------------------------------------- |
+| `GET`  | `/api/health`        | liveness                                      |
+| `GET`  | `/api/auth/csrf`     | ensures CSRF cookie                           |
 | `POST` | `/api/auth/register` | `201` `{ user }` + auth cookies; rate-limited |
-| `POST` | `/api/auth/login` | `200` `{ user }` + auth cookies; rate-limited |
-| `POST` | `/api/auth/refresh` | rotate refresh; CSRF; rate-limited |
-| `POST` | `/api/auth/logout` | revoke current session; clear cookies; CSRF |
-| `GET` | `/api/me` | current user; requires access JWT cookie |
+| `POST` | `/api/auth/login`    | `200` `{ user }` + auth cookies; rate-limited |
+| `POST` | `/api/auth/refresh`  | rotate refresh; CSRF; rate-limited            |
+| `POST` | `/api/auth/logout`   | revoke current session; clear cookies; CSRF   |
+| `GET`  | `/api/me`            | current user; requires access JWT cookie      |
 
 Mutating routes require matching `Origin` and CSRF header/cookie double-submit.
 
