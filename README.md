@@ -4,7 +4,6 @@ Job application tracker portfolio project. **Phase 1 (done):** auth foundation. 
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
-
 ## Architecture
 
 ```mermaid
