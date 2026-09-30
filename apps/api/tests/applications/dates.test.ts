@@ -23,4 +23,16 @@ describe("parseOptionalDateInput", () => {
   it("throws on invalid date strings", () => {
     expect(() => parseOptionalDateInput("not-a-date")).toThrow();
   });
+
+  it("throws on malformed YYYY-MM-DD that Date.UTC would roll", () => {
+    expect(() => parseOptionalDateInput("2024-02-30")).toThrow();
+    expect(() => parseOptionalDateInput("2024-13-45")).toThrow();
+    expect(() => parseOptionalDateInput("2023-02-29")).toThrow();
+  });
+
+  it("accepts leap-day 2024-02-29 as UTC midnight", () => {
+    expect(parseOptionalDateInput("2024-02-29")).toEqual(
+      new Date(Date.UTC(2024, 1, 29, 0, 0, 0, 0)),
+    );
+  });
 });

@@ -12,7 +12,15 @@ export function parseOptionalDateInput(
 
   if (DATE_ONLY.test(value)) {
     const [year, month, day] = value.split("-").map(Number);
-    return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const parsed = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    if (
+      parsed.getUTCFullYear() !== year ||
+      parsed.getUTCMonth() !== month - 1 ||
+      parsed.getUTCDate() !== day
+    ) {
+      throw new Error(`Invalid date: ${value}`);
+    }
+    return parsed;
   }
 
   const parsed = new Date(value);

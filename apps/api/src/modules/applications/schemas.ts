@@ -37,7 +37,14 @@ const optionalEmail = z.preprocess(
 export const optionalDateInputSchema = z
   .union([z.null(), z.string()])
   .optional()
-  .transform((value) => parseOptionalDateInput(value));
+  .transform((value, ctx) => {
+    try {
+      return parseOptionalDateInput(value);
+    } catch {
+      ctx.addIssue({ code: "custom", message: "Invalid date" });
+      return z.NEVER;
+    }
+  });
 
 const sharedApplicationFields = {
   location: trimmedMax(200),

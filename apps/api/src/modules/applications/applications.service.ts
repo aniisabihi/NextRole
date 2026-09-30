@@ -137,7 +137,7 @@ export async function listApplications(
     prisma.application.count({ where }),
     prisma.application.findMany({
       where,
-      orderBy: { [sortField]: query.order },
+      orderBy: [{ [sortField]: query.order }, { id: query.order }],
       skip: (query.page - 1) * query.pageSize,
       take: query.pageSize,
     }),

@@ -240,6 +240,131 @@ describe("applications HTTP: CRUD", () => {
     expect(emptyPatch.json().error.code).toBe("VALIDATION_ERROR");
   });
 
+  it("clears optional fields with JSON null and records FIELDS_UPDATED", async () => {
+    const session = await registerAndLogin(app);
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: {
+        company: "Acme",
+        title: "Eng",
+        notes: "keep me",
+        location: "Stockholm",
+      },
+    });
+    expect(createRes.statusCode).toBe(201);
+    const id = createRes.json().application.id as string;
+
+    const patchRes = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+      payload: { notes: null, location: null },
+    });
+
+    expect(patchRes.statusCode).toBe(200);
+    expect(patchRes.json().application).toMatchObject({
+      id,
+      notes: null,
+      location: null,
+    });
+
+    const activitiesRes = await app.inject({
+      method: "GET",
+      url: `/api/applications/${id}/activities`,
+      headers: { Cookie: session.cookieHeader },
+    });
+    expect(activitiesRes.statusCode).toBe(200);
+    const fieldsUpdated = (
+      activitiesRes.json() as {
+        items: Array<{
+          type: string;
+          payload: {
+            fields: Record<string, { from: unknown; to: unknown }>;
+          };
+        }>;
+      }
+    ).items.find((a) => a.type === "FIELDS_UPDATED");
+    expect(fieldsUpdated).toBeTruthy();
+    expect(fieldsUpdated.payload.fields.notes).toEqual({
+      from: "keep me",
+      to: null,
+    });
+    expect(fieldsUpdated.payload.fields.location).toEqual({
+      from: "Stockholm",
+      to: null,
+    });
+  });
+
+  it("stores YYYY-MM-DD as UTC midnight and rejects invalid dates with 400", async () => {
+    const session = await registerAndLogin(app);
+
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: {
+        company: "Acme",
+        title: "Eng",
+        dateApplied: "2024-01-15",
+      },
+    });
+    expect(createRes.statusCode).toBe(201);
+    expect(createRes.json().application.dateApplied).toBe(
+      "2024-01-15T00:00:00.000Z",
+    );
+
+    const id = createRes.json().application.id as string;
+
+    const badCreate = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: {
+        company: "Bad",
+        title: "Date",
+        dateApplied: "not-a-date",
+      },
+    });
+    expect(badCreate.statusCode).toBe(400);
+    expect(badCreate.json().error.code).toBe("VALIDATION_ERROR");
+
+    const badCalendar = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: {
+        company: "Bad",
+        title: "Calendar",
+        dateApplied: "2024-02-30",
+      },
+    });
+    expect(badCalendar.statusCode).toBe(400);
+    expect(badCalendar.json().error.code).toBe("VALIDATION_ERROR");
+
+    const badPatch = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+      payload: { dateDiscovered: "yesterday" },
+    });
+    expect(badPatch.statusCode).toBe(400);
+    expect(badPatch.json().error.code).toBe("VALIDATION_ERROR");
+
+    const goodPatch = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+      payload: { dateDiscovered: "2024-02-29" },
+    });
+    expect(goodPatch.statusCode).toBe(200);
+    expect(goodPatch.json().application.dateDiscovered).toBe(
+      "2024-02-29T00:00:00.000Z",
+    );
+  });
+
   it("returns INVALID_STATUS_TRANSITION when transition denied", async () => {
     const session = await registerAndLogin(app);
 
