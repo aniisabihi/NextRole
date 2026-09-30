@@ -199,6 +199,10 @@ export async function updateApplication(
     }
   }
 
+  if (Object.keys(data).length === 0) {
+    return existing;
+  }
+
   return prisma.$transaction(async (tx) => {
     const application = await tx.application.update({
       where: { id },

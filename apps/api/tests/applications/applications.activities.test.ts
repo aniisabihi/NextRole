@@ -66,6 +66,37 @@ describe("applications HTTP: activities", () => {
     });
   });
 
+  it("same-status no-op PATCH keeps updatedAt and creates no activities", async () => {
+    const session = await registerAndLogin(app);
+    const { id } = await createApp(session);
+
+    const before = await prisma.application.findUniqueOrThrow({ where: { id } });
+    const activityCountBefore = await prisma.activity.count({
+      where: { applicationId: id },
+    });
+
+    await new Promise((r) => setTimeout(r, 20));
+
+    const patchRes = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+      payload: { status: "SAVED" },
+    });
+    expect(patchRes.statusCode).toBe(200);
+
+    const after = await prisma.application.findUniqueOrThrow({ where: { id } });
+    expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime());
+    expect(patchRes.json().application.updatedAt).toBe(
+      before.updatedAt.toISOString(),
+    );
+
+    const activityCountAfter = await prisma.activity.count({
+      where: { applicationId: id },
+    });
+    expect(activityCountAfter).toBe(activityCountBefore);
+  });
+
   it("records STATUS_CHANGED on status PATCH", async () => {
     const session = await registerAndLogin(app);
     const { id } = await createApp(session);
