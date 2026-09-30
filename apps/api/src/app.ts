@@ -4,6 +4,8 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { loadEnv, parseCorsOrigins } from "./config/env.js";
 import { errorHandler } from "./shared/middleware/error-handler.js";
+import { ensureCsrfCookie, csrfPreHandler } from "./shared/middleware/csrf.js";
+import { originPreHandler } from "./shared/middleware/origin.js";
 
 export async function buildApp() {
   const env = loadEnv();
@@ -18,6 +20,10 @@ export async function buildApp() {
     credentials: true,
   });
   await app.register(cookie);
+
+  app.addHook("onRequest", ensureCsrfCookie);
+  app.addHook("preHandler", originPreHandler);
+  app.addHook("preHandler", csrfPreHandler);
 
   app.setErrorHandler(errorHandler);
 
