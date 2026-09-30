@@ -27,7 +27,7 @@ Requires Node **22** (see `.nvmrc`).
 docker compose up -d
 # or: docker-compose up -d
 
-cp .env.example .env
+cp .env.example apps/api/.env
 npm install
 npm run db:migrate
 npm run dev
@@ -56,7 +56,7 @@ npm run dev
 | `ARGON2_TIME_COST` | no | `3` | iterations |
 | `ARGON2_PARALLELISM` | no | `1` | threads |
 
-Copy `.env.example` → `.env` for local defaults.
+Copy `.env.example` → `apps/api/.env` for local defaults (Prisma, Vitest setup, and `server.ts` all read that file; a root `.env` is only a fallback for the API process).
 
 ## Auth notes (Phase 1)
 

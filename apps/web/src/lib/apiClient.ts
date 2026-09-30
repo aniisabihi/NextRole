@@ -1,5 +1,12 @@
 import { getCsrfToken } from "./csrf";
 
+/** 401 here is a credential/session failure — never try refresh or hard-redirect. */
+const SKIP_REFRESH_PATHS = new Set([
+  "/api/auth/login",
+  "/api/auth/register",
+  "/api/auth/refresh",
+]);
+
 let refreshPromise: Promise<boolean> | null = null;
 
 async function rawRefresh(): Promise<boolean> {
@@ -21,6 +28,16 @@ async function refreshOnce(): Promise<boolean> {
   return refreshPromise;
 }
 
+async function errorMessage(res: Response): Promise<string> {
+  try {
+    const body = (await res.json()) as { error?: { message?: string } };
+    if (body.error?.message) return body.error.message;
+  } catch {
+    // non-JSON body
+  }
+  return `HTTP ${res.status}`;
+}
+
 export async function apiClient<T>(
   path: string,
   init: RequestInit = {},
@@ -35,7 +52,7 @@ export async function apiClient<T>(
     fetch(path, { ...init, method, headers, credentials: "include" });
 
   let res = await doFetch();
-  if (res.status === 401 && path !== "/api/auth/refresh") {
+  if (res.status === 401 && !SKIP_REFRESH_PATHS.has(path)) {
     const ok = await refreshOnce();
     if (!ok) {
       window.location.href = "/login";
@@ -44,7 +61,7 @@ export async function apiClient<T>(
     res = await doFetch();
   }
   if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
+    throw new Error(await errorMessage(res));
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
