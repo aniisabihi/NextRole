@@ -13,3 +13,7 @@ export function parseBody<T>(schema: ZodType<T>, data: unknown): T {
   }
   return result.data;
 }
+
+export function parseQuery<T>(schema: ZodType<T>, data: unknown): T {
+  return parseBody(schema, data);
+}

@@ -7,6 +7,43 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ApplicationStatus {
+  SAVED
+  APPLIED
+  SCREENING
+  INTERVIEW
+  TECHNICAL_INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERNSHIP
+  OTHER
+}
+
+enum WorkplaceType {
+  ON_SITE
+  HYBRID
+  REMOTE
+}
+
+enum ActivityType {
+  APPLICATION_CREATED
+  STATUS_CHANGED
+  FIELDS_UPDATED
+}
+
 model User {
   id           String         @id @default(cuid())
   email        String         @unique
@@ -15,6 +52,7 @@ model User {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   sessions     RefreshToken[]
+  applications Application[]
 }
 
 model RefreshToken {
@@ -34,4 +72,49 @@ model RefreshToken {
   @@index([userId])
   @@index([familyId])
   @@index([expiresAt])
+}
+
+model Application {
+  id                 String            @id @default(cuid())
+  userId             String
+  user               User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company            String
+  title              String
+  location           String?
+  employmentType     EmploymentType?
+  workplaceType      WorkplaceType?
+  salary             String?
+  jobUrl             String?
+  dateDiscovered     DateTime?
+  dateApplied        DateTime?
+  status             ApplicationStatus @default(SAVED)
+  priority           Priority          @default(MEDIUM)
+  priorityRank       Int               @default(2)
+  notes              String?
+  contactName        String?
+  contactEmail       String?
+  contactPhone       String?
+  contactRole        String?
+  resumeVersion      String?
+  coverLetterVersion String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  activities         Activity[]
+
+  @@index([userId, status])
+  @@index([userId, company])
+  @@index([userId, updatedAt])
+  @@index([userId, priority])
+}
+
+model Activity {
+  id            String        @id @default(cuid())
+  applicationId String
+  application   Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  userId        String
+  type          ActivityType
+  payload       Json
+  createdAt     DateTime      @default(now())
+
+  @@index([applicationId, createdAt])
 }
