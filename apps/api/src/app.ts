@@ -6,6 +6,8 @@ import { loadEnv, parseCorsOrigins } from "./config/env.js";
 import { errorHandler } from "./shared/middleware/error-handler.js";
 import { ensureCsrfCookie, csrfPreHandler } from "./shared/middleware/csrf.js";
 import { originPreHandler } from "./shared/middleware/origin.js";
+import { authRoutes } from "./modules/auth/routes.js";
+import { usersRoutes } from "./modules/users/routes.js";
 
 export async function buildApp() {
   const env = loadEnv();
@@ -28,6 +30,9 @@ export async function buildApp() {
   app.setErrorHandler(errorHandler);
 
   app.get("/api/health", async () => ({ ok: true }));
+
+  await app.register(authRoutes, { prefix: "/api/auth" });
+  await app.register(usersRoutes, { prefix: "/api" });
 
   return app;
 }
