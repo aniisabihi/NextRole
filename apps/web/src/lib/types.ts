@@ -82,3 +82,43 @@ export type ApplicationListResponse = {
 export type ApplicationResponse = {
   application: Application;
 };
+
+export const ACTIVITY_TYPES = [
+  "APPLICATION_CREATED",
+  "STATUS_CHANGED",
+  "FIELDS_UPDATED",
+] as const;
+export type ActivityType = (typeof ACTIVITY_TYPES)[number];
+
+export type ActivityFieldDiff = {
+  from: unknown;
+  to: unknown;
+};
+
+export type ApplicationCreatedPayload = {
+  company: string;
+  title: string;
+  status: ApplicationStatus;
+};
+
+export type StatusChangedPayload = {
+  from: ApplicationStatus;
+  to: ApplicationStatus;
+};
+
+export type FieldsUpdatedPayload = {
+  fields: Record<string, ActivityFieldDiff>;
+};
+
+export type Activity = {
+  id: string;
+  applicationId: string;
+  userId: string;
+  type: ActivityType;
+  payload: ApplicationCreatedPayload | StatusChangedPayload | FieldsUpdatedPayload | Record<string, unknown>;
+  createdAt: string;
+};
+
+export type ActivityListResponse = {
+  items: Activity[];
+};

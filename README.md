@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (next):** applications core — see `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (done on `feat/phase-2-applications`):** applications core — see `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
@@ -122,4 +122,78 @@ GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): 
 
 ## Phase 1 non-goals
 
-Applications CRUD, Kanban, activities, interviews, dashboard analytics, BullMQ workers, file uploads, email, AI, payments, shared packages, Turborepo, pnpm, Next.js, Redis-backed auth, session UI, `__Host-` cookies, multi-device session UI, email verification, password reset, git hooks (Husky).
+Kanban, interviews, dashboard analytics, BullMQ workers, file uploads, email, AI, payments, shared packages, Turborepo, pnpm, Next.js, Redis-backed auth, session UI, `__Host-` cookies, multi-device session UI, email verification, password reset, git hooks (Husky).
+
+## Phase 2 — Applications core
+
+User-owned job applications: CRUD, list/search/filter/sort, soft status transitions, activity timeline, React list/create/detail pages.
+
+### How to run
+
+Same as Setup above:
+
+```bash
+docker compose up -d   # or docker-compose up -d
+cp .env.example apps/api/.env
+npm install
+npm run db:migrate
+npm run dev            # API :3000 + web :5173 (Vite proxies /api)
+```
+
+Web routes: `/applications`, `/applications/new`, `/applications/:id`. Dashboard links to recent applications (no fake stats).
+
+### Employment vs workplace
+
+Two independent dimensions (not one combined enum):
+
+| Field            | Values                                              | Meaning                          |
+| ---------------- | --------------------------------------------------- | -------------------------------- |
+| `employmentType` | `FULL_TIME`, `PART_TIME`, `CONTRACT`, `INTERNSHIP`, `OTHER` | Contract / hours relationship   |
+| `workplaceType`  | `ON_SITE`, `HYBRID`, `REMOTE`                       | Where work happens               |
+
+### Enums
+
+| Enum               | Values                                                                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| `ApplicationStatus`| `SAVED`, `APPLIED`, `SCREENING`, `INTERVIEW`, `TECHNICAL_INTERVIEW`, `OFFER`, `REJECTED`, `WITHDRAWN` |
+| `Priority`         | `LOW`, `MEDIUM`, `HIGH` (sort via `priorityRank`: 1 / 2 / 3)                                   |
+| `ActivityType`     | `APPLICATION_CREATED`, `STATUS_CHANGED`, `FIELDS_UPDATED`                                      |
+
+### Soft status transition matrix
+
+**Pipeline (non-terminal):** `SAVED`, `APPLIED`, `SCREENING`, `INTERVIEW`, `TECHNICAL_INTERVIEW`  
+**Terminal:** `OFFER`, `REJECTED`, `WITHDRAWN`
+
+| From \ To            | Non-terminal              | Terminal |
+| -------------------- | ------------------------- | -------- |
+| Non-terminal         | allow                     | allow    |
+| `OFFER` / `REJECTED` | **deny**                  | allow    |
+| `WITHDRAWN`          | only `SAVED` or `APPLIED` | allow    |
+
+- `from === to` → no-op (no write, no activity).
+- Deny → `400` `INVALID_STATUS_TRANSITION`.
+- Create may set any initial status (no transition check); only `APPLICATION_CREATED` activity.
+
+### API (Phase 2)
+
+All routes require auth cookies. Mutations need CSRF + Origin (same as Phase 1).
+
+| Method   | Path                               | Success                        |
+| -------- | ---------------------------------- | ------------------------------ |
+| `GET`    | `/api/applications`                | `200` `{ items, total, page, pageSize }` |
+| `POST`   | `/api/applications`                | `201` `{ application }`        |
+| `GET`    | `/api/applications/:id`            | `200` `{ application }`        |
+| `PATCH`  | `/api/applications/:id`            | `200` `{ application }`        |
+| `DELETE` | `/api/applications/:id`            | `204`                          |
+| `GET`    | `/api/applications/:id/activities` | `200` `{ items }` newest-first |
+
+**List query:** `q`, `status`, `company`, `employmentType`, `workplaceType`, `priority`, `sort` (`updatedAt` \| `createdAt` \| `dateApplied` \| `priority` \| `status`), `order` (`asc` \| `desc`), `page`, `pageSize` (max 50).
+
+**Activities:** soft cap **200** newest rows per application (no pagination UI yet). No public write API — rows created as side effects of create/PATCH.
+
+**Ownership:** every query scoped to `request.userId`; wrong/missing id → `404` `NOT_FOUND`.
+
+### Spec / plan
+
+- Spec: `docs/superpowers/specs/2026-09-30-nextrole-phase2-design.md`
+- Plan: `docs/superpowers/plans/2026-09-30-nextrole-phase2.md`

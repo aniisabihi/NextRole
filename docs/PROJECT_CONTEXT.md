@@ -60,7 +60,7 @@ Build **incrementally**. Do not implement everything in one phase.
 | Phase                       | Status                                 | Deliverable                                                                                   |
 | --------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
 | **1 — Auth foundation**     | **Done** (on `main`)                   | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
-| **2 — Applications core**   | **Spec + plan ready; not implemented** | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
+| **2 — Applications core**   | **Done on `feat/phase-2-applications`** | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
 | **3 — Kanban**              | Not started                            | Board UI + drag/move; reuse Phase 2 transition rules                                          |
 | **4 — Interviews**          | Not started                            | Interview CRUD nested under applications                                                      |
 | **5 — Dashboard analytics** | Not started                            | Real aggregates only (no fake numbers)                                                        |
@@ -94,9 +94,18 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ---
 
-## Phase 2 — next (ready to execute)
+## Phase 2 — implemented (this branch)
+
+**Branch:** `feat/phase-2-applications` (merge to `main` when PR lands).
 
 **Scope locked (option A):** applications core only — **no** Kanban, interviews, BullMQ, or fake dashboard stats.
+
+**Works:**
+
+- Application CRUD + ownership isolation
+- List: `q`, status/company/employment/workplace/priority filters, sort (incl. `priorityRank`), pagination
+- Soft status transitions (`assertTransition`); activities timeline
+- FE: `/applications`, `/applications/new`, `/applications/:id` + dashboard recent links
 
 **Extra field decision:** two dimensions —
 
@@ -112,15 +121,10 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 **Docs:**
 
 - Spec: `docs/superpowers/specs/2026-09-30-nextrole-phase2-design.md` (**Approved**)
-- Plan: `docs/superpowers/plans/2026-09-30-nextrole-phase2.md` (**Reviewed; ready for SDD**)
+- Plan: `docs/superpowers/plans/2026-09-30-nextrole-phase2.md` (**Executed via SDD**)
+- README Phase 2 section: endpoints, enums, transition matrix, employment vs workplace
 
-**Execution when starting a new session:**
-
-1. Read this file + Phase 2 spec + Phase 2 plan
-2. Use **subagent-driven-development** (user preference historically: option 1)
-3. Branch `feat/phase-2-applications` from `main`
-4. Implement plan tasks 1→7; do not expand scope
-
+**Next when starting a new session:** Phase 3 Kanban (reuse transition rules); do not re-implement Phase 2.
 ---
 
 ## Phases left (after Phase 2)
@@ -149,8 +153,8 @@ Details: root `README.md`.
 
 ## Agent / session tips
 
-- Caveman communication may be active for this user; code/commits stay normal prose in commit messages.
+- After Phase 2 merge, update **this file** again if branch tip / PR URL should be recorded on `main`.
 - Prefer inspecting existing modules before inventing new patterns.
 - Spec > plan > improvisation; document intentional deviations in README.
 - Do not commit secrets (`.env`).
-- After Phase 2 implementation, update **this file** (mark Phase 2 done; point to commits/PR).
+- Caveman communication may be active for this user; code/commits stay normal prose in commit messages.

@@ -226,7 +226,7 @@ export async function updateApplication(
           applicationId: id,
           userId,
           type: "FIELDS_UPDATED",
-          payload: { fields: fieldDiff },
+          payload: { fields: fieldDiff } as Prisma.InputJsonValue,
         },
       });
     }
