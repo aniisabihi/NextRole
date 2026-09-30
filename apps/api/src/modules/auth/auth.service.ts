@@ -99,8 +99,8 @@ export async function refresh(
   try {
     const { raw, userId } = await rotateSession(refreshRaw);
     const access = await signAccessToken(userId);
-    const csrf = existingCsrf ?? createCsrfToken();
-    setAuthCookies(reply, { access, refresh: raw, csrf });
+    // Keep request CSRF — do not mint a new token on refresh (avoids racing parallel POSTs).
+    setAuthCookies(reply, { access, refresh: raw, csrf: existingCsrf! });
   } catch (err) {
     clearAuthCookies(reply);
     throw err;
