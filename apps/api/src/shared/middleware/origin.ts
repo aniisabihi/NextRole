@@ -1,13 +1,10 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyRequest } from "fastify";
 import { loadEnv, parseCorsOrigins } from "../../config/env.js";
 import { AppError } from "../errors/app-error.js";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-export async function originPreHandler(
-  request: FastifyRequest,
-  _reply: FastifyReply,
-): Promise<void> {
+export async function originPreHandler(request: FastifyRequest): Promise<void> {
   if (SAFE_METHODS.has(request.method)) {
     return;
   }

@@ -13,10 +13,7 @@ export async function ensureCsrfCookie(
   }
 }
 
-export async function csrfPreHandler(
-  request: FastifyRequest,
-  _reply: FastifyReply,
-): Promise<void> {
+export async function csrfPreHandler(request: FastifyRequest): Promise<void> {
   if (SAFE_METHODS.has(request.method)) {
     return;
   }

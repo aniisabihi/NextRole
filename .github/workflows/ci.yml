@@ -1,0 +1,39 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nextrole
+          POSTGRES_PASSWORD: nextrole
+          POSTGRES_DB: nextrole
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U nextrole -d nextrole"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://nextrole:nextrole@localhost:5432/nextrole
+      JWT_ACCESS_SECRET: ci-access-secret-at-least-32-chars-long
+      REFRESH_TOKEN_PEPPER: ci-refresh-pepper-at-least-32-chars
+      CORS_ORIGIN: http://localhost:5173
+      COOKIE_SECURE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate -w apps/api
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test -w apps/api
+      - run: npm run build
