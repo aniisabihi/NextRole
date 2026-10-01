@@ -310,6 +310,7 @@ export function ApplicationDetailPage() {
           queryKey: ["application-activities", id],
         }),
         queryClient.invalidateQueries({ queryKey: ["applications"] }),
+        queryClient.invalidateQueries({ queryKey: ["reminders"] }),
       ]);
     },
     onError: (err) => {

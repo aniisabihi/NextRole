@@ -340,6 +340,7 @@ export function InterviewsSection({
       queryClient.invalidateQueries({
         queryKey: ["application-activities", applicationId],
       }),
+      queryClient.invalidateQueries({ queryKey: ["reminders"] }),
     ]);
   }
 
