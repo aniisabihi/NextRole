@@ -57,16 +57,16 @@ Build **incrementally**. Do not implement everything in one phase.
 
 ## Roadmap / phases
 
-| Phase                             | Status                                                | Deliverable                                                                                   |
-| --------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **1 — Auth foundation**           | **Done** (on `main`)                                  | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
-| **2 — Applications core**         | **Done** (on `main`, PR #2)                           | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
-| **3 — Kanban**                    | **Done** (on `main`, PR #3)                           | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
-| **4 — Interviews**                | **Done** (on `main`, PR #4)                           | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
-| **UI — Soft Chromatic**           | **Done** (on `main`, PR #5)                           | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
+| Phase                             | Status                      | Deliverable                                                                                   |
+| --------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
+| **1 — Auth foundation**           | **Done** (on `main`)        | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
+| **2 — Applications core**         | **Done** (on `main`, PR #2) | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
+| **3 — Kanban**                    | **Done** (on `main`, PR #3) | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
+| **4 — Interviews**                | **Done** (on `main`, PR #4) | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
+| **UI — Soft Chromatic**           | **Done** (on `main`, PR #5) | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
 | **5 — Dashboard analytics**       | **Done** (on `main`, PR #6) | `GET /api/dashboard/stats`, Soft Chromatic stat tiles + CSS bar chart, real aggregates only   |
-| **6 — Reminders / BullMQ** (next) | Not started                                           | Worker process + Redis usage                                                                  |
-| **Later**                         | —                                                     | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
+| **6 — Reminders / BullMQ** (next) | Not started                 | Worker process + Redis usage                                                                  |
+| **Later**                         | —                           | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
 
 Phase numbers 3–6 are the intended order; adjust only with an explicit design pass.
 
