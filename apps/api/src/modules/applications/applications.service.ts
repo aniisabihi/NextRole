@@ -8,6 +8,7 @@ import type {
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import type {
+  BoardReorderBody,
   CreateApplicationBody,
   ListApplicationsQuery,
   UpdateApplicationBody,
@@ -268,6 +269,46 @@ export async function deleteApplication(
   }
 
   await prisma.application.delete({ where: { id } });
+}
+
+export async function reorderBoardCell(
+  userId: string,
+  input: BoardReorderBody,
+): Promise<{ ok: true }> {
+  const unique = new Set(input.orderedIds);
+  if (unique.size !== input.orderedIds.length) {
+    throw new AppError("VALIDATION_ERROR", 400, "orderedIds must be unique");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const cell = await tx.application.findMany({
+      where: {
+        userId,
+        status: input.status,
+        priority: input.priority,
+      },
+      select: { id: true },
+    });
+    const cellIds = new Set(cell.map((a) => a.id));
+    if (
+      cellIds.size !== input.orderedIds.length ||
+      input.orderedIds.some((id) => !cellIds.has(id))
+    ) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        400,
+        "orderedIds must match cell membership",
+      );
+    }
+
+    for (let i = 0; i < input.orderedIds.length; i++) {
+      await tx.application.update({
+        where: { id: input.orderedIds[i]! },
+        data: { boardOrder: i },
+      });
+    }
+    return { ok: true as const };
+  });
 }
 
 export async function listActivities(

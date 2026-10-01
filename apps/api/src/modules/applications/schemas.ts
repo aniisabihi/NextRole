@@ -131,6 +131,13 @@ export const listApplicationsQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export const boardReorderSchema = z.object({
+  status: z.nativeEnum(ApplicationStatus),
+  priority: z.nativeEnum(Priority),
+  orderedIds: z.array(z.string().min(1)).min(1).max(100),
+});
+
+export type BoardReorderBody = z.infer<typeof boardReorderSchema>;
 export type CreateApplicationBody = z.infer<typeof createApplicationSchema>;
 export type UpdateApplicationBody = z.infer<typeof updateApplicationSchema>;
 export type ListApplicationsQuery = z.infer<typeof listApplicationsQuerySchema>;
