@@ -41,12 +41,23 @@ export function setQueuePrefix(prefix: string | undefined): void {
 /**
  * Producer connection: offline queue disabled so enqueue fails fast when Redis
  * is down (callers catch/log; sweep repairs). Worker connections must instead
- * use `maxRetriesPerRequest: null` (see worker task).
+ * use `maxRetriesPerRequest: null` (see createWorkerConnection).
  */
 export function createQueueConnection(): ConnectionOptions {
   return {
     ...parseRedisUrl(loadEnv().REDIS_URL),
     enableOfflineQueue: false,
+  };
+}
+
+/**
+ * Worker connection: BullMQ requires `maxRetriesPerRequest: null` for blocking
+ * commands. Separate from the producer connection (offline queue disabled).
+ */
+export function createWorkerConnection(): ConnectionOptions {
+  return {
+    ...parseRedisUrl(loadEnv().REDIS_URL),
+    maxRetriesPerRequest: null,
   };
 }
 
