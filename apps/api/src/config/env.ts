@@ -4,6 +4,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().default("redis://127.0.0.1:6379"),
+  BULLMQ_PREFIX: z.string().min(1).optional(),
   JWT_ACCESS_SECRET: z.string().min(32),
   REFRESH_TOKEN_PEPPER: z.string().min(32),
   CORS_ORIGIN: z.string().min(1),
