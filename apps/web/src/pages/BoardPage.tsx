@@ -24,6 +24,7 @@ import {
   findCard,
   parseDndId,
   resolveDrop,
+  resolveMultiDrop,
   type DropAction,
 } from "../lib/boardDnd";
 import { useReducedMotion } from "../lib/useReducedMotion";
@@ -39,6 +40,12 @@ const BOARD_PATH =
 const BOARD_KEY = ["applications", "board"] as const;
 
 const label = (a: Application) => `${a.company}, ${a.title}`;
+const plural = (n: number) => `${n} application${n === 1 ? "" : "s"}`;
+
+type BulkStatusResult = {
+  moved: Application[];
+  skipped: { id: string; code: string; message: string }[];
+};
 
 /** Pointer: card > cell > column (most specific wins). Keyboard: nearest card/cell. */
 const collisionDetection: CollisionDetection = (args) => {
@@ -74,7 +81,46 @@ export function BoardPage() {
   const [message, setMessage] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [focusId, setFocusId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
   const busy = useRef(false);
+
+  const announceSelection = (n: number) =>
+    setMessage(n === 0 ? "Selection cleared." : `${n} selected.`);
+
+  function toggleSelect(id: string) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+    announceSelection(next.size);
+  }
+
+  function clearSelection() {
+    if (selectedIds.size === 0) return;
+    setSelectedIds(new Set());
+    announceSelection(0);
+  }
+
+  // Escape clears selection (but not mid-drag: Escape cancels the drag then).
+  useEffect(() => {
+    if (selectedIds.size === 0 || activeId) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setSelectedIds(new Set());
+      setMessage("Selection cleared.");
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [selectedIds, activeId]);
+
+  // Drop selected ids that no longer exist on the board (deleted, paged out).
+  useEffect(() => {
+    if (!cells || selectedIds.size === 0) return;
+    const live = [...selectedIds].filter((id) => findCard(cells, id));
+    if (live.length !== selectedIds.size) setSelectedIds(new Set(live));
+  }, [cells, selectedIds]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -99,6 +145,9 @@ export function BoardPage() {
     const parsed = activeId ? parseDndId(activeId) : null;
     return cells && parsed?.kind === "card" ? findCard(cells, parsed.id) : null;
   }, [activeId, cells]);
+
+  const isMultiDrag =
+    selectedIds.size > 1 && activeApp !== null && selectedIds.has(activeApp.id);
 
   const announcements = useMemo<Announcements>(() => {
     const nameOf = (id: string | number) => {
@@ -188,6 +237,48 @@ export function BoardPage() {
     setActiveId(String(e.active.id));
   }
 
+  async function onMultiDragEnd(
+    boardCells: NonNullable<typeof cells>,
+    anchor: Application,
+    overId: string | number | undefined,
+  ) {
+    const action = resolveMultiDrop(boardCells, selectedIds, overId);
+    if (action.type === "none") {
+      setFocusId(anchor.id);
+      return;
+    }
+    if (action.type === "unsupported") {
+      setMessage(
+        "Moving multiple selected cards between priority lanes is not supported. Drop them on a column to change status.",
+      );
+      setFocusId(anchor.id);
+      return;
+    }
+
+    busy.current = true;
+    try {
+      const { moved, skipped } = await apiClient<BulkStatusResult>(
+        "/api/applications/board/bulk-status",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: action.ids, toStatus: action.toStatus }),
+        },
+      );
+      setSelectedIds(new Set());
+      setMessage(`Moved ${moved.length}, skipped ${skipped.length}`);
+    } catch (err) {
+      setMessage(
+        `Could not move ${plural(action.ids.length)}: ${
+          err instanceof Error ? err.message : "unknown error"
+        }`,
+      );
+    } finally {
+      busy.current = false;
+      await refresh(anchor.id);
+    }
+  }
+
   async function onDragEnd(e: DragEndEvent) {
     setActiveId(null);
     if (!cells) return;
@@ -197,6 +288,12 @@ export function BoardPage() {
     if (!moved) return;
     if (busy.current) {
       setMessage("Previous move still in progress. Try again shortly.");
+      return;
+    }
+
+    // Multi-drag: dragged card is part of a selection of 2+.
+    if (selectedIds.size > 1 && selectedIds.has(moved.id)) {
+      await onMultiDragEnd(cells, moved, e.over?.id);
       return;
     }
 
@@ -232,6 +329,30 @@ export function BoardPage() {
     <main className="mx-auto flex max-w-none flex-col gap-4 p-6">
       <AppNav />
       <h1 className="text-2xl font-semibold">Board</h1>
+
+      <div className="flex min-h-11 flex-wrap items-center gap-3 text-sm text-neutral-700">
+        {selectedIds.size > 0 ? (
+          <>
+            <span className="font-medium text-neutral-900">
+              {selectedIds.size} selected
+            </span>
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="min-h-11 rounded border border-neutral-400 px-3 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+            >
+              Clear selection
+            </button>
+            <span>
+              Drag a selected card to a column to move all (status only).
+            </span>
+          </>
+        ) : (
+          <span>
+            Cmd/Ctrl-click cards to select several, then drag to a column.
+          </span>
+        )}
+      </div>
 
       <div role="status" aria-live="polite" className="sr-only">
         {message}
@@ -278,12 +399,19 @@ export function BoardPage() {
                 status={status}
                 cells={cells}
                 reducedMotion={reducedMotion}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
               />
             ))}
           </div>
           <DragOverlay dropAnimation={reducedMotion ? null : undefined}>
             {activeApp ? (
-              <div className="flex rounded border border-neutral-900 bg-white shadow-md">
+              <div className="relative flex rounded border border-neutral-900 bg-white shadow-md">
+                {isMultiDrag ? (
+                  <span className="absolute -right-2 -top-2 z-10 rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-semibold text-white">
+                    {selectedIds.size}
+                  </span>
+                ) : null}
                 <div
                   aria-hidden="true"
                   className="flex min-h-11 min-w-11 items-center justify-center border-r border-neutral-200 text-neutral-700"

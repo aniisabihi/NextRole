@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { groupForBoard } from "./board";
-import { cardId, cellId, columnId, parseDndId, resolveDrop } from "./boardDnd";
+import {
+  cardId,
+  cellId,
+  columnId,
+  parseDndId,
+  resolveDrop,
+  resolveMultiDrop,
+} from "./boardDnd";
 import type { Application } from "./types";
 
 function app(
@@ -116,6 +123,48 @@ describe("resolveDrop", () => {
       orderedIds: ["b", "c", "a"],
     });
     expect(resolveDrop(cells, cardId("c"), cellId("APPLIED", "HIGH"))).toEqual({
+      type: "none",
+    });
+  });
+});
+
+describe("resolveMultiDrop", () => {
+  it("column drop → bulk to that status", () => {
+    expect(resolveMultiDrop(cells, ["a", "b"], columnId("OFFER"))).toEqual({
+      type: "bulk",
+      ids: ["a", "b"],
+      toStatus: "OFFER",
+    });
+  });
+
+  it("cell/card in another column → bulk to that column", () => {
+    expect(
+      resolveMultiDrop(cells, ["a"], cellId("OFFER", "LOW")),
+    ).toMatchObject({ type: "bulk", toStatus: "OFFER" });
+    expect(resolveMultiDrop(cells, ["a"], cardId("e"))).toMatchObject({
+      type: "bulk",
+      toStatus: "OFFER",
+    });
+  });
+
+  it("lane/card drop in the selection's own column → unsupported", () => {
+    expect(
+      resolveMultiDrop(cells, ["a", "b"], cellId("APPLIED", "LOW")),
+    ).toEqual({ type: "unsupported" });
+    expect(resolveMultiDrop(cells, ["a", "d"], cardId("c"))).toEqual({
+      type: "unsupported",
+    });
+  });
+
+  it("mixed-status selection onto cell is bulk", () => {
+    expect(
+      resolveMultiDrop(cells, ["a", "f"], cellId("APPLIED", "LOW")),
+    ).toMatchObject({ type: "bulk", toStatus: "APPLIED" });
+  });
+
+  it("no target / unknown ids → none", () => {
+    expect(resolveMultiDrop(cells, ["a"], null)).toEqual({ type: "none" });
+    expect(resolveMultiDrop(cells, ["zzz"], columnId("OFFER"))).toEqual({
       type: "none",
     });
   });

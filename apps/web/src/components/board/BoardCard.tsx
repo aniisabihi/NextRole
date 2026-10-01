@@ -22,9 +22,13 @@ export function BoardCardBody({ app }: { app: Application }) {
 export function BoardCard({
   app,
   reducedMotion,
+  selected,
+  onToggleSelect,
 }: {
   app: Application;
   reducedMotion: boolean;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
 }) {
   const {
     attributes,
@@ -46,20 +50,31 @@ export function BoardCard({
         transform: CSS.Transform.toString(transform),
         transition,
       }}
-      className={`flex items-stretch rounded border border-neutral-300 bg-white ${
-        isDragging ? "opacity-40" : ""
-      }`}
+      data-selected={selected ? "true" : undefined}
+      onClickCapture={(e) => {
+        // Cmd/Ctrl-click toggles selection instead of navigating.
+        if (e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggleSelect(app.id);
+        }
+      }}
+      className={`flex items-stretch rounded border ${
+        selected
+          ? "border-2 border-neutral-900 bg-neutral-100"
+          : "border-neutral-300 bg-white"
+      } ${isDragging ? "opacity-40" : ""}`}
     >
       <button
         type="button"
         ref={setActivatorNodeRef}
         data-drag-handle={app.id}
-        aria-label={`Drag ${app.company}, ${app.title}`}
+        aria-label={`Drag ${app.company}, ${app.title}${selected ? ", selected" : ""}`}
         className="flex min-h-11 min-w-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-l border-r border-neutral-200 text-neutral-700 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 active:cursor-grabbing"
         {...attributes}
         {...listeners}
       >
-        <span aria-hidden="true">⠿</span>
+        <span aria-hidden="true">{selected ? "✓" : "⠿"}</span>
       </button>
       <BoardCardBody app={app} />
     </li>

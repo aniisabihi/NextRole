@@ -12,11 +12,15 @@ export function BoardCell({
   priority,
   items,
   reducedMotion,
+  selectedIds,
+  onToggleSelect,
 }: {
   status: ApplicationStatus;
   priority: Priority;
   items: Application[];
   reducedMotion: boolean;
+  selectedIds: ReadonlySet<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: cellId(status, priority),
@@ -47,7 +51,13 @@ export function BoardCell({
             </li>
           ) : (
             items.map((app) => (
-              <BoardCard key={app.id} app={app} reducedMotion={reducedMotion} />
+              <BoardCard
+                key={app.id}
+                app={app}
+                reducedMotion={reducedMotion}
+                selected={selectedIds.has(app.id)}
+                onToggleSelect={onToggleSelect}
+              />
             ))
           )}
         </ul>

@@ -8,10 +8,14 @@ export function BoardColumn({
   status,
   cells,
   reducedMotion,
+  selectedIds,
+  onToggleSelect,
 }: {
   status: ApplicationStatus;
   cells: BoardCells;
   reducedMotion: boolean;
+  selectedIds: ReadonlySet<string>;
+  onToggleSelect: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: columnId(status) });
   const count = BOARD_PRIORITY_LANES.reduce(
@@ -38,6 +42,8 @@ export function BoardColumn({
           priority={priority}
           items={cells[status][priority]}
           reducedMotion={reducedMotion}
+          selectedIds={selectedIds}
+          onToggleSelect={onToggleSelect}
         />
       ))}
     </section>

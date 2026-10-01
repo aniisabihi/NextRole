@@ -130,3 +130,47 @@ export function resolveDrop(
     orderedIds: arrayMove(ids, from, to),
   };
 }
+
+export type MultiDropAction =
+  | { type: "none" }
+  /** Drop on a lane/card inside the column every selected card already sits in. */
+  | { type: "unsupported" }
+  | { type: "bulk"; ids: string[]; toStatus: ApplicationStatus };
+
+/**
+ * Pure multi-drop resolution. Bulk moves change status only (priority is
+ * preserved server-side), so lane moves and reorders are unsupported.
+ * A column drop, or a drop on a lane/card of a *different* column, targets
+ * that column. A lane/card drop within the selection's own column is a lane
+ * move → unsupported. Ids missing from `cells` are dropped.
+ */
+export function resolveMultiDrop(
+  cells: BoardCells,
+  selectedIds: Iterable<string>,
+  overRaw: string | number | null | undefined,
+): MultiDropAction {
+  if (overRaw == null) return { type: "none" };
+  const over = parseDndId(overRaw);
+  if (!over) return { type: "none" };
+
+  const selected: Application[] = [];
+  for (const id of selectedIds) {
+    const card = findCard(cells, id);
+    if (card) selected.push(card);
+  }
+  if (selected.length === 0) return { type: "none" };
+
+  let toStatus: ApplicationStatus;
+  if (over.kind === "card") {
+    const target = findCard(cells, over.id);
+    if (!target) return { type: "none" };
+    toStatus = target.status;
+  } else {
+    toStatus = over.status;
+  }
+
+  if (over.kind !== "column" && selected.every((a) => a.status === toStatus)) {
+    return { type: "unsupported" };
+  }
+  return { type: "bulk", ids: selected.map((a) => a.id), toStatus };
+}
