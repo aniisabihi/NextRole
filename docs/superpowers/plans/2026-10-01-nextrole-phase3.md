@@ -518,8 +518,6 @@ function groupForBoard(items: Application[]) {
 - Consumes: Tasks 3–5 APIs + `canTransition`
 - Produces: full board interactions per spec (incl. a11y behaviors below)
 
-**Produces:** Full interactions per spec
-
 - [ ] **Step 1: Install**
 
 ```bash
