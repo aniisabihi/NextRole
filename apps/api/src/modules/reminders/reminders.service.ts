@@ -186,7 +186,8 @@ export async function updateReminder(
   }
   const updated = await prisma.reminder.findUniqueOrThrow({ where: { id } });
   const dueChanged = updated.dueAt.getTime() !== existing.dueAt.getTime();
-  if (!dueChanged) return toReminderDto(updated);
+  // Also repair a lost job (earlier enqueue failed -> null bullJobId) on title/body edits.
+  if (!dueChanged && updated.bullJobId) return toReminderDto(updated);
   return toReminderDto(await persistJobId(updated, existing.bullJobId));
 }
 

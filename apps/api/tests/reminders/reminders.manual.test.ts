@@ -205,6 +205,27 @@ describe("MANUAL reminders HTTP", () => {
     await expectJobExists(after.bullJobId);
   });
 
+  it("PATCH title-only on SCHEDULED with null bullJobId → enqueues (repair)", async () => {
+    const { session, application } = await setup();
+    const r = await seedReminder({
+      userId: session.user.id,
+      applicationId: application.id,
+    });
+    expect(r.bullJobId).toBeNull();
+    const res = await app.inject({
+      method: "PATCH",
+      url: `/api/reminders/${r.id}`,
+      headers: csrfHeaders(session),
+      payload: { title: "Renamed" },
+    });
+    expect(res.statusCode).toBe(200);
+    const row = await prisma.reminder.findUniqueOrThrow({
+      where: { id: r.id },
+    });
+    expect(row.title).toBe("Renamed");
+    await expectJobExists(row.bullJobId);
+  });
+
   it("PATCH past dueAt → 400; empty body → 400; other user → 404", async () => {
     const { session, application } = await setup();
     const created = (await createManual(session, application.id)).json();

@@ -71,3 +71,9 @@ export async function enqueueReminder(
   );
   return jobId;
 }
+
+/** True if a job with this id is currently in the queue (any state). Throws on Redis failure. */
+export async function reminderJobExists(jobId: string): Promise<boolean> {
+  const job = await withTimeout(getReminderQueue().getJob(jobId), "getJob");
+  return Boolean(job);
+}

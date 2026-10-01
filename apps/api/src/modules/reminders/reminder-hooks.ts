@@ -199,3 +199,89 @@ export async function syncFollowUpOnStatusChange(
   });
   effects.enqueue.push(row);
 }
+
+// -------------------------------------------------------------------- PREFS
+
+/**
+ * Recompute open SCHEDULED auto reminders after a prefs change. Only the kind
+ * whose pref changed is touched. DB writes happen in `tx`; job removal/enqueue
+ * is deferred to `effects` (flushed post-commit). `dueAt <= now` is fine for
+ * FOLLOW_UP: enqueue clamps to delay 0 (fire path).
+ *
+ * - INTERVIEW (interview still SCHEDULED): `interviewDueAt(scheduledAt, lead)`;
+ *   null (lead passed) -> cancel.
+ * - FOLLOW_UP: `createdAt + followUpDays`.
+ */
+export async function rescheduleAutoRemindersForPrefs(
+  tx: Tx,
+  input: {
+    userId: string;
+    interviewLeadHours?: number;
+    followUpDays?: number;
+  },
+  effects: ReminderEffects,
+  now: Date = new Date(),
+): Promise<void> {
+  const { userId, interviewLeadHours, followUpDays } = input;
+
+  if (interviewLeadHours !== undefined) {
+    const rows = await tx.reminder.findMany({
+      where: {
+        userId,
+        kind: "INTERVIEW",
+        status: "SCHEDULED",
+        interview: { is: { status: "SCHEDULED" } },
+      },
+      include: { interview: { select: { scheduledAt: true } } },
+    });
+    for (const row of rows) {
+      if (!row.interview) continue;
+      const dueAt = interviewDueAt(
+        row.interview.scheduledAt,
+        interviewLeadHours,
+        now,
+      );
+      await applyDueAt(tx, row, dueAt, effects);
+    }
+  }
+
+  if (followUpDays !== undefined) {
+    const rows = await tx.reminder.findMany({
+      where: { userId, kind: "FOLLOW_UP", status: "SCHEDULED" },
+    });
+    for (const row of rows) {
+      await applyDueAt(
+        tx,
+        row,
+        followUpDueAt(row.createdAt, followUpDays),
+        effects,
+      );
+    }
+  }
+}
+
+/** `dueAt === null` cancels; unchanged `dueAt` is a no-op; else update + queue re-enqueue. */
+async function applyDueAt(
+  tx: Tx,
+  row: Reminder,
+  dueAt: Date | null,
+  effects: ReminderEffects,
+): Promise<void> {
+  if (dueAt === null) {
+    const res = await tx.reminder.updateMany({
+      where: { id: row.id, status: "SCHEDULED" },
+      data: { status: "CANCELLED" },
+    });
+    if (res.count === 1 && row.bullJobId)
+      effects.removeJobIds.push(row.bullJobId);
+    return;
+  }
+  if (dueAt.getTime() === row.dueAt.getTime()) return;
+  const res = await tx.reminder.updateMany({
+    where: { id: row.id, status: "SCHEDULED" },
+    data: { dueAt },
+  });
+  if (res.count !== 1) return;
+  if (row.bullJobId) effects.removeJobIds.push(row.bullJobId);
+  effects.enqueue.push({ ...row, dueAt });
+}

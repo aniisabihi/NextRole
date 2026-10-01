@@ -13,15 +13,12 @@ dotenv.config({ path: path.join(apiRoot, "../../.env") });
 const { prisma } = await import("./db/prisma.js");
 const { closeReminderQueue } = await import("./jobs/queue.js");
 const { startReminderWorker } = await import("./jobs/reminder-worker.js");
-
-/** Stub: boot reconcile + periodic sweep land in Task 6. */
-async function reconcileReminders(): Promise<void> {
-  console.log("[worker] reconcile: not implemented yet (Task 6)");
-}
+const { startReconcileLoop } = await import("./jobs/reminder-reconcile.js");
 
 const worker = startReminderWorker();
 console.log("[worker] reminder worker started");
-await reconcileReminders();
+// Boot sweep now, then every ~60s (repairs lost/missing jobs + overdue SCHEDULED).
+const reconcileLoop = startReconcileLoop();
 
 let shuttingDown = false;
 async function shutdown(signal: string): Promise<void> {
@@ -29,6 +26,7 @@ async function shutdown(signal: string): Promise<void> {
   shuttingDown = true;
   console.log(`[worker] ${signal} received, closing`);
   try {
+    await reconcileLoop.stop();
     await worker.close();
     await closeReminderQueue();
     await prisma.$disconnect();
