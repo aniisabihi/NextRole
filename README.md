@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1–4 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI). **Phase 5 dashboard analytics done on branch `feat/phase-5-dashboard-analytics`** (pending PR/merge). **Next:** reminders / BullMQ (Phase 6). See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1–5 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI, [PR #6](https://github.com/aniisabihi/NextRole/pull/6) dashboard analytics). **Next:** reminders / BullMQ (Phase 6). See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 

@@ -64,7 +64,7 @@ Build **incrementally**. Do not implement everything in one phase.
 | **3 — Kanban**                    | **Done** (on `main`, PR #3)                           | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
 | **4 — Interviews**                | **Done** (on `main`, PR #4)                           | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
 | **UI — Soft Chromatic**           | **Done** (on `main`, PR #5)                           | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
-| **5 — Dashboard analytics**       | **Done on branch** `feat/phase-5-dashboard-analytics` | `GET /api/dashboard/stats`, Soft Chromatic stat tiles + CSS bar chart, real aggregates only   |
+| **5 — Dashboard analytics**       | **Done** (on `main`, PR #6) | `GET /api/dashboard/stats`, Soft Chromatic stat tiles + CSS bar chart, real aggregates only   |
 | **6 — Reminders / BullMQ** (next) | Not started                                           | Worker process + Redis usage                                                                  |
 | **Later**                         | —                                                     | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
 
@@ -177,7 +177,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ---
 
-## Phase 5 — Dashboard analytics (done on branch `feat/phase-5-dashboard-analytics`)
+## Phase 5 — Dashboard analytics (done on `main`, PR #6)
 
 **Scope:** `/dashboard` analytics only; no reminders, BullMQ, days-in-status, priority/interview-type mix, or `/analytics` route.
 
@@ -199,7 +199,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ## Phases left (next up)
 
-1. ~~Dashboard analytics (Phase 5)~~ — done on branch `feat/phase-5-dashboard-analytics` (pending merge)
+1. ~~Dashboard analytics (Phase 5)~~ — done on `main` (PR #6)
 2. **Reminders + BullMQ worker (Phase 6, next)** — independent worker process; Redis required
 3. **Hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
 
