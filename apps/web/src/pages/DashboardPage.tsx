@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
-import { Button } from "../components/ui/Button";
+import { ButtonLink } from "../components/ui/Button";
 import { PageHeader } from "../components/ui/PageHeader";
 import { StatusChip } from "../components/ui/StatusChip";
 import { Surface } from "../components/ui/Surface";
@@ -16,7 +16,10 @@ export function DashboardPage() {
   });
 
   const recent = useQuery({
-    queryKey: ["applications", { pageSize: 5, sort: "updatedAt", order: "desc" }],
+    queryKey: [
+      "applications",
+      { pageSize: 5, sort: "updatedAt", order: "desc" },
+    ],
     queryFn: () =>
       apiClient<ApplicationListResponse>(
         "/api/applications?pageSize=5&sort=updatedAt&order=desc&page=1",
@@ -58,14 +61,10 @@ export function DashboardPage() {
         description={`Welcome back, ${greeting}`}
         actions={
           <>
-            <Link to="/applications">
-              <Button variant="secondary" type="button">
-                View applications
-              </Button>
-            </Link>
-            <Link to="/applications/new">
-              <Button type="button">New application</Button>
-            </Link>
+            <ButtonLink variant="secondary" to="/applications">
+              View applications
+            </ButtonLink>
+            <ButtonLink to="/applications/new">New application</ButtonLink>
           </>
         }
       />

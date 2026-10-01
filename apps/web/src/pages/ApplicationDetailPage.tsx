@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
-import { Button } from "../components/ui/Button";
+import { Button, ButtonLink } from "../components/ui/Button";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
 import { statusLabel } from "../lib/statusColors";
@@ -100,10 +100,14 @@ function enumOrNull(value: string): string | null {
   return value ? value : null;
 }
 
-function buildPatch(form: FormState, original: Application): Record<string, unknown> {
+function buildPatch(
+  form: FormState,
+  original: Application,
+): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
 
-  if (form.company.trim() !== original.company) patch.company = form.company.trim();
+  if (form.company.trim() !== original.company)
+    patch.company = form.company.trim();
   if (form.title.trim() !== original.title) patch.title = form.title.trim();
 
   const location = optionalOrNull(form.location);
@@ -142,16 +146,20 @@ function buildPatch(form: FormState, original: Application): Record<string, unkn
   if (notes !== (original.notes ?? null)) patch.notes = notes;
 
   const contactName = optionalOrNull(form.contactName);
-  if (contactName !== (original.contactName ?? null)) patch.contactName = contactName;
+  if (contactName !== (original.contactName ?? null))
+    patch.contactName = contactName;
 
   const contactEmail = optionalOrNull(form.contactEmail);
-  if (contactEmail !== (original.contactEmail ?? null)) patch.contactEmail = contactEmail;
+  if (contactEmail !== (original.contactEmail ?? null))
+    patch.contactEmail = contactEmail;
 
   const contactPhone = optionalOrNull(form.contactPhone);
-  if (contactPhone !== (original.contactPhone ?? null)) patch.contactPhone = contactPhone;
+  if (contactPhone !== (original.contactPhone ?? null))
+    patch.contactPhone = contactPhone;
 
   const contactRole = optionalOrNull(form.contactRole);
-  if (contactRole !== (original.contactRole ?? null)) patch.contactRole = contactRole;
+  if (contactRole !== (original.contactRole ?? null))
+    patch.contactRole = contactRole;
 
   const resumeVersion = optionalOrNull(form.resumeVersion);
   if (resumeVersion !== (original.resumeVersion ?? null)) {
@@ -247,8 +255,7 @@ export function ApplicationDetailPage() {
   const appQuery = useQuery({
     queryKey: ["application", id],
     enabled: Boolean(id),
-    queryFn: () =>
-      apiClient<ApplicationResponse>(`/api/applications/${id!}`),
+    queryFn: () => apiClient<ApplicationResponse>(`/api/applications/${id!}`),
   });
 
   const activitiesQuery = useQuery({
@@ -306,7 +313,9 @@ export function ApplicationDetailPage() {
   if (!id) {
     return (
       <AppShell>
-        <p className="text-sm text-status-rejected-ink">Missing application id.</p>
+        <p className="text-sm text-status-rejected-ink">
+          Missing application id.
+        </p>
       </AppShell>
     );
   }
@@ -347,11 +356,9 @@ export function ApplicationDetailPage() {
         title="Edit application"
         description={`${form.company} — ${form.title}`}
         actions={
-          <Link to="/applications">
-            <Button variant="ghost" type="button">
-              Back to list
-            </Button>
-          </Link>
+          <ButtonLink variant="ghost" to="/applications">
+            Back to list
+          </ButtonLink>
         }
       />
 
@@ -439,9 +446,7 @@ export function ApplicationDetailPage() {
             <select
               className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               value={form.priority}
-              onChange={(e) =>
-                setField("priority", e.target.value as Priority)
-              }
+              onChange={(e) => setField("priority", e.target.value as Priority)}
             >
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
@@ -502,7 +507,9 @@ export function ApplicationDetailPage() {
           />
         </label>
         <fieldset className="grid gap-4 sm:grid-cols-2">
-          <legend className="mb-1 text-sm font-semibold text-ink">Contact</legend>
+          <legend className="mb-2 font-display text-base font-semibold text-ink">
+            Contact
+          </legend>
           <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Name
             <input
@@ -574,11 +581,15 @@ export function ApplicationDetailPage() {
       <InterviewsSection applicationId={id} />
 
       <Surface as="section" className="flex flex-col gap-4">
-        <h2 className="font-display text-xl font-semibold text-ink">Timeline</h2>
+        <h2 className="font-display text-xl font-semibold text-ink">
+          Timeline
+        </h2>
         {activitiesQuery.isLoading ? (
           <p className="text-sm text-ink-muted">Loading activities…</p>
         ) : activitiesQuery.isError ? (
-          <p className="text-sm text-status-rejected-ink">Could not load activities.</p>
+          <p className="text-sm text-status-rejected-ink">
+            Could not load activities.
+          </p>
         ) : activities.length === 0 ? (
           <p className="text-sm text-ink-muted">No activities yet.</p>
         ) : (

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
-import { Button } from "../components/ui/Button";
+import { Button, ButtonLink } from "../components/ui/Button";
 import { Field, TextInput, TextSelect } from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
 import { PriorityChip, StatusChip } from "../components/ui/StatusChip";
@@ -89,9 +89,7 @@ export function ApplicationsPage() {
         title="Applications"
         description="Filter, sort, and open any role in your pipeline."
         actions={
-          <Link to="/applications/new">
-            <Button type="button">New application</Button>
-          </Link>
+          <ButtonLink to="/applications/new">New application</ButtonLink>
         }
       />
 

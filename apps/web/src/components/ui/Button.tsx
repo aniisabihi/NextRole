@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { Link, type LinkProps } from "react-router-dom";
 
 const variants = {
   primary:
@@ -13,7 +14,17 @@ const variants = {
     "bg-accent-soft text-accent-hover hover:bg-accent/20 disabled:opacity-50",
 } as const;
 
-type Variant = keyof typeof variants;
+export type ButtonVariant = keyof typeof variants;
+
+const baseClass =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 py-2 text-sm font-medium no-underline transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+
+export function buttonClassName(
+  variant: ButtonVariant = "primary",
+  className = "",
+): string {
+  return `${baseClass} ${variants[variant]} ${className}`;
+}
 
 export function Button({
   variant = "primary",
@@ -21,15 +32,30 @@ export function Button({
   children,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: Variant;
+  variant?: ButtonVariant;
   children: ReactNode;
 }) {
   return (
-    <button
-      className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 py-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink ${variants[variant]} ${className}`}
-      {...props}
-    >
+    <button className={buttonClassName(variant, className)} {...props}>
       {children}
     </button>
+  );
+}
+
+/** Styled link that looks like Button — valid `<a>`, middle-click works. */
+export function ButtonLink({
+  variant = "primary",
+  className = "",
+  children,
+  ...props
+}: LinkProps & {
+  variant?: ButtonVariant;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Link className={buttonClassName(variant, className)} {...props}>
+      {children}
+    </Link>
   );
 }

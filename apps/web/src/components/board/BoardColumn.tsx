@@ -33,7 +33,7 @@ export function BoardColumn({
       ref={setNodeRef}
       role="region"
       aria-label={status}
-      className={`flex w-72 shrink-0 flex-col gap-3 rounded-[var(--radius-panel)] border p-3 transition-shadow ${STATUS_COLUMN[status]} ${
+      className={`flex w-72 shrink-0 flex-col gap-3 rounded-[var(--radius-panel)] border p-3 transition-[box-shadow,background-color] ${STATUS_COLUMN[status]} ${
         isOver ? STATUS_COLUMN_OVER[status] : ""
       }`}
     >

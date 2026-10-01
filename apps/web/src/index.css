@@ -101,6 +101,12 @@
     animation: auth-fade-in 0.45s ease-out both;
   }
 
+  @media (prefers-reduced-motion: reduce) {
+    .auth-fade-in {
+      animation: none;
+    }
+  }
+
   @keyframes auth-fade-in {
     from {
       opacity: 0;

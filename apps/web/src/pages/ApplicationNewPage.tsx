@@ -1,8 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
-import { Button } from "../components/ui/Button";
-import { Field, TextInput, TextSelect, TextTextarea } from "../components/ui/Field";
+import { Button, ButtonLink } from "../components/ui/Button";
+import {
+  Field,
+  TextInput,
+  TextSelect,
+  TextTextarea,
+} from "../components/ui/Field";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
 import { apiClient } from "../lib/apiClient";
@@ -71,11 +76,9 @@ export function ApplicationNewPage() {
         title="New application"
         description="Capture a role and drop it into your pipeline."
         actions={
-          <Link to="/applications">
-            <Button variant="ghost" type="button">
-              Back to list
-            </Button>
-          </Link>
+          <ButtonLink variant="ghost" to="/applications">
+            Back to list
+          </ButtonLink>
         }
       />
       <Surface as="form" className="flex flex-col gap-5" onSubmit={onSubmit}>
