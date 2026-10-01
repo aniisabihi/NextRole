@@ -19,6 +19,8 @@
 - Never commit `.env`
 - No interviews / BullMQ / analytics
 - Register `/board/*` **before** `/:id`
+- Board POSTs rely on existing global CSRF + Origin hooks (no extra middleware)
+- Parallel create `boardOrder` races accepted in Phase 3 (no unique cell constraint; same spirit as reorder LWW)
 
 ## Global Constraints
 
@@ -71,7 +73,9 @@ docs/PROJECT_CONTEXT.md
 - Modify: `apps/api/src/modules/applications/applications.service.ts` — create appends `boardOrder`
 - Create: `apps/api/src/modules/applications/board-order.ts` — shared helper
 
-**Produces:** `nextBoardOrderInCell(tx, userId, status, priority): Promise<number>`
+**Interfaces:**
+
+- Produces: `nextBoardOrderInCell(tx, userId, status, priority): Promise<number>`
 
 - [ ] **Step 1: Add helper**
 
@@ -108,11 +112,27 @@ export async function nextBoardOrderInCell(
 npm run db:migrate:dev -w apps/api -- --name add_board_order
 ```
 
-Backfill in migration SQL (or follow-up SQL in same migration): for each distinct `(user_id, status, priority)`, set `board_order` = row_number()-1 ordered by `updated_at DESC`.
+Edit the generated migration SQL to include this backfill **after** adding the column (Prisma maps to quoted camelCase columns on Postgres for this schema):
+
+```sql
+-- After ALTER TABLE ... ADD COLUMN "boardOrder" ...
+WITH ranked AS (
+  SELECT id,
+    (ROW_NUMBER() OVER (
+      PARTITION BY "userId", status, priority
+      ORDER BY "updatedAt" DESC
+    ) - 1)::int AS rn
+  FROM "Application"
+)
+UPDATE "Application" AS a
+SET "boardOrder" = ranked.rn
+FROM ranked
+WHERE a.id = ranked.id;
+```
 
 - [ ] **Step 3: pageSize max 100** in `listApplicationsQuerySchema`
 
-- [ ] **Step 4: createApplication** — after resolving `status`/`priority`, set `boardOrder: await nextBoardOrderInCell(tx, userId, status, priority)` inside the existing transaction **before** create (aggregate excludes the new row — correct).
+- [ ] **Step 4: createApplication** — inside existing `$transaction`, **before** `create`: `boardOrder = await nextBoardOrderInCell(tx, userId, status, priority)` then pass into `data`. Aggregate does not include the new row yet (correct). Parallel creates may collide on `boardOrder` — accepted Phase 3.
 
 - [ ] **Step 5: Test** — create two apps same status+priority → `boardOrder` 0 then 1; `pageSize=100` OK; `101` → 400
 
@@ -127,8 +147,10 @@ Backfill in migration SQL (or follow-up SQL in same migration): for each distinc
 - Modify: `applications.service.ts` `updateApplication`
 - Test: extend CRUD or `applications.board.test.ts`
 
-**Consumes:** `nextBoardOrderInCell`  
-**Produces:** status/priority/dual PATCH place card at end of final cell; keep `priorityRank`
+**Interfaces:**
+
+- Consumes: `nextBoardOrderInCell` from Task 1
+- Produces: `updateApplication` places `boardOrder` at end of final cell on status/priority/dual change; keeps `priorityRank` on priority write
 
 - [ ] **Step 1: Failing tests**
 
@@ -138,27 +160,41 @@ Backfill in migration SQL (or follow-up SQL in same migration): for each distinc
 | PATCH priority only | `boardOrder` = end of `(oldStatus, newPriority)`; `priorityRank` updated |
 | PATCH both | one placement at `(newStatus, newPriority)` |
 | Same status no-op | no `boardOrder` change (existing early return) |
+| Delete | remaining siblings keep old `boardOrder` values (gaps OK; no compact) |
 
-- [ ] **Step 2: Implement** — after computing `nextStatus` / priority in patch loop, determine:
+- [ ] **Step 2: Implement (single algorithm)**
+
+1. Outside transaction (current pattern): load `existing`, build `data` / `fieldDiff` / `statusChanging` / `nextStatus`, run `assertTransition`, early-return if `data` empty.
+2. Detect cell change:
 
 ```ts
+const priorityChanging =
+  patch.priority !== undefined && patch.priority !== existing.priority;
+const cellChanged = statusChanging || priorityChanging;
 const finalStatus = statusChanging ? nextStatus! : existing.status;
-const finalPriority =
-  "priority" in /* changed */ ? (patch.priority as Priority) : existing.priority;
-const cellChanged =
-  statusChanging ||
-  (patch.priority !== undefined && patch.priority !== existing.priority);
+const finalPriority = priorityChanging
+  ? (patch.priority as Priority)
+  : existing.priority;
+```
+
+3. Inside `$transaction` **only**:
+
+```ts
 if (cellChanged) {
+  // Row still has old status/priority until this update runs, so it is NOT
+  // counted in the target cell aggregate — do not "exclude self" manually.
   data.boardOrder = await nextBoardOrderInCell(
-    tx, // must move placement inside transaction after locks — see Step 2b
+    tx,
     userId,
     finalStatus,
     finalPriority,
   );
 }
+const application = await tx.application.update({ where: { id }, data });
+// … existing activity writes …
 ```
 
-**Step 2b:** Compute `boardOrder` **inside** the `$transaction`, using `tx`, after validating transitions — so append sees concurrent commits. If current code loads `existing` outside tx, keep validation outside; set `boardOrder` inside tx via helper.
+Do **not** call `nextBoardOrderInCell` outside the transaction.
 
 - [ ] **Step 3: PASS + commit** `feat: place boardOrder on status and priority updates`
 
@@ -173,7 +209,9 @@ if (cellChanged) {
 - Modify: `routes.ts` — register **before** `/:id`
 - Test: `applications.board.test.ts`
 
-**Produces:**
+**Interfaces:**
+
+- Produces:
 
 ```ts
 reorderBoardCell(
@@ -197,7 +235,10 @@ export const boardReorderSchema = z.object({
 - [ ] **Step 3: Implement service**
 
 ```ts
-export async function reorderBoardCell(userId: string, input: BoardReorderBody) {
+export async function reorderBoardCell(
+  userId: string,
+  input: BoardReorderBody,
+) {
   const unique = new Set(input.orderedIds);
   if (unique.size !== input.orderedIds.length) {
     throw new AppError("VALIDATION_ERROR", 400, "orderedIds must be unique");
@@ -263,7 +304,10 @@ Place this (and Task 4 bulk route) **above** `app.get("/:id", …)`.
 - Modify: `routes.ts`
 - Test: `applications.board.test.ts`
 
-**Produces:**
+**Interfaces:**
+
+- Consumes: Task 2 `updateApplication` (boardOrder placement on status change)
+- Produces:
 
 ```ts
 bulkUpdateStatus(
@@ -274,6 +318,8 @@ bulkUpdateStatus(
 
 - [ ] **Step 1: Schema**
 
+Pinned: request body `ids` length **1..100** (after this Zod check). Then dedupe preserving first-seen order (unique count ≤ 100 automatically).
+
 ```ts
 export const boardBulkStatusSchema = z.object({
   ids: z.array(z.string().min(1)).min(1).max(100),
@@ -281,21 +327,21 @@ export const boardBulkStatusSchema = z.object({
 });
 ```
 
-- [ ] **Step 2: Failing tests** — mixed move/skip transition; `ALREADY_IN_STATUS`; `NOT_FOUND`; dedupe; activities only for moved; priority preserved; sequential boardOrder in target cell
+- [ ] **Step 2: Failing tests** — mixed move/skip transition; `ALREADY_IN_STATUS`; `NOT_FOUND`; dedupe (e.g. `["a","a","b"]` processes once each); activities only for moved; priority preserved; sequential `boardOrder` in target cell
 
 - [ ] **Step 3: Implement**
 
 ```ts
-export async function bulkUpdateStatus(userId: string, input: BoardBulkStatusBody) {
+export async function bulkUpdateStatus(
+  userId: string,
+  input: BoardBulkStatusBody,
+) {
   const seen = new Set<string>();
   const ids: string[] = [];
   for (const id of input.ids) {
     if (seen.has(id)) continue;
     seen.add(id);
     ids.push(id);
-  }
-  if (ids.length > 100) {
-    throw new AppError("VALIDATION_ERROR", 400, "Too many ids");
   }
 
   const moved: Application[] = [];
@@ -330,6 +376,7 @@ export async function bulkUpdateStatus(userId: string, input: BoardBulkStatusBod
       }
       throw e;
     }
+    // Requires Task 2: updateApplication appends boardOrder in target cell
     const updated = await updateApplication(userId, id, {
       status: input.toStatus,
     });
@@ -339,8 +386,6 @@ export async function bulkUpdateStatus(userId: string, input: BoardBulkStatusBod
   return { moved, skipped };
 }
 ```
-
-Prefer calling shared internal update that already handles `boardOrder` (Task 2). If `updateApplication` public API is fine, use it (sequential — satisfies race note).
 
 - [ ] **Step 4: Route** `POST /board/bulk-status` before `/:id`
 
@@ -355,19 +400,25 @@ Prefer calling shared internal update that already handles `boardOrder` (Task 2)
 **Files:**
 
 - Create: `apps/web/src/lib/status-transitions.ts`
-- Create: `apps/web/src/lib/status-transitions.test.ts` (Vitest if web has it — **or** colocate tests under `apps/api` parity file that imports duplicated cases; prefer add `vitest` to web **only if already trivial**. Simpler: put FE matrix tests in `apps/api/tests/applications/can-transition-parity.test.ts` documenting the web file must match — **Ruling:** add web vitest script only if package already supports; else unit-test a **copied** pure function by extracting expected matrix table in `apps/web` and run via `apps/api` test importing from a shared **duplicate** test table in the plan.
+- Create: `apps/web/src/lib/status-transitions.test.ts`
+- Modify: `apps/web/package.json` — add `vitest` devDep + `"test": "vitest run"`
+- Modify: `apps/web/src/lib/types.ts` — `boardOrder: number` on `Application`
 
-**Pinned approach:** Implement `canTransition` in web; add `apps/web` vitest as `vitest` + script mirroring api (lightweight) **or** test file under api that re-implements the same assertions the web file documents. Prefer:
+**Interfaces:**
+
+- Produces: `canTransition(from, to): boolean` (matrix parity with API `assertTransition`)
+
+**Pinned (only path):** Add Vitest to `apps/web`. Task 8 gate runs `npm run test -w apps/web`.
+
+- [ ] **Step 1: Install + script**
 
 ```bash
 npm install -D vitest -w apps/web
 ```
 
-only if Task 5 needs it — alternatively export nothing from api and duplicate test cases in markdown. **Best:** add `apps/web/src/lib/status-transitions.test.ts` and `"test": "vitest run"` to web; root `npm test` already workspace api only — run `npm run test -w apps/web` in gate for Phase 3 **or** fold web unit into api gate by testing identical logic strings.
+Add to `apps/web/package.json` scripts: `"test": "vitest run"`.
 
-**Ruling for plan:** Copy matrix into web; add web vitest + include `npm run test -w apps/web` in Task 8 gate.
-
-- [ ] **Step 1: Implement** (mirror API logic; return boolean)
+- [ ] **Step 2: Implement**
 
 ```ts
 import type { ApplicationStatus } from "./types";
@@ -386,11 +437,11 @@ export function canTransition(
 }
 ```
 
-- [ ] **Step 2: Tests** — same 7 cases as API `status-transitions.test.ts`
+- [ ] **Step 3: Tests** — same 7 cases as `apps/api/tests/applications/status-transitions.test.ts` (SAVED→APPLIED ok; APPLIED→OFFER ok; OFFER→APPLIED false; REJECTED→WITHDRAWN ok; WITHDRAWN→SAVED ok; WITHDRAWN→SCREENING false; OFFER→OFFER true)
 
-- [ ] **Step 3: Add `boardOrder` to `Application` type** in `types.ts`
+- [ ] **Step 4: Add `boardOrder: number` to `Application` in `types.ts`**
 
-- [ ] **Step 4: Commit** `feat: add web canTransition mirror for board`
+- [ ] **Step 5: Commit** `feat: add web canTransition mirror for board`
 
 ---
 
@@ -398,34 +449,58 @@ export function canTransition(
 
 **Files:**
 
-- Modify: `AppNav.tsx` — Board link
+- Modify: `AppNav.tsx` — Board link + focus-visible
 - Modify: `App.tsx` — `/board` route
 - Create: `BoardPage.tsx` (+ optional `components/board/*`)
-- Polish: visual hierarchy, column/lane landmarks, truncation banner
 
-**Produces:** Read-only board UI (no DnD yet) showing all 8 columns × 3 lanes
+**Interfaces:**
 
-- [ ] **Step 1: Fetch**
+- Consumes: list API + `APPLICATION_STATUSES` / `PRIORITIES` from `types.ts`
+- Produces: read-only board UI (8 columns × 3 lanes), truncation banner
+
+- [ ] **Step 1: Fetch + group**
 
 ```ts
+import {
+  APPLICATION_STATUSES,
+  type Application,
+  type ApplicationStatus,
+  type Priority,
+} from "../lib/types";
+
+/** Swimlane order on board (spec: HIGH → MEDIUM → LOW). */
+const BOARD_PRIORITY_LANES = ["HIGH", "MEDIUM", "LOW"] as const satisfies readonly Priority[];
+
 apiClient<ListResponse>(
   "/api/applications?pageSize=100&sort=updatedAt&order=desc&page=1",
 );
-```
 
-Group:
-
-```ts
-const STATUSES = [/* APPLICATION_STATUSES order */];
-const PRIORITIES = ["HIGH", "MEDIUM", "LOW"] as const;
 // cells[status][priority] = apps sorted by boardOrder asc
+function groupForBoard(items: Application[]) {
+  const cells = {} as Record<
+    ApplicationStatus,
+    Record<Priority, Application[]>
+  >;
+  for (const status of APPLICATION_STATUSES) {
+    cells[status] = { HIGH: [], MEDIUM: [], LOW: [] };
+  }
+  for (const app of items) {
+    cells[app.status][app.priority].push(app);
+  }
+  for (const status of APPLICATION_STATUSES) {
+    for (const priority of BOARD_PRIORITY_LANES) {
+      cells[status][priority].sort((a, b) => a.boardOrder - b.boardOrder);
+    }
+  }
+  return cells;
+}
 ```
 
-- [ ] **Step 2: Render** scrollable columns; lane regions; counts; card shows company/title/priority text (not color-only); link/button to detail on card body
+- [ ] **Step 2: Render** horizontal scroll columns (`APPLICATION_STATUSES` order); each column `region` + `aria-label={status}`; lanes `BOARD_PRIORITY_LANES` with labels + counts; cards show company / title / priority **text** (not color-only); card body is button/link to `/applications/:id`
 
 - [ ] **Step 3: Truncation** if `total > items.length` — banner + link to `/applications`
 
-- [ ] **Step 4: AppNav focus-visible styles** (light consistency)
+- [ ] **Step 4: AppNav** — add Board `NavLink`; add `focus-visible:outline` (or project-equivalent) on nav links
 
 - [ ] **Step 5: Commit** `feat: add Kanban board page scaffold`
 
@@ -438,6 +513,11 @@ const PRIORITIES = ["HIGH", "MEDIUM", "LOW"] as const;
 - Modify: `apps/web/package.json` — `@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`
 - Modify: `BoardPage.tsx` / board components
 
+**Interfaces:**
+
+- Consumes: Tasks 3–5 APIs + `canTransition`
+- Produces: full board interactions per spec (incl. a11y behaviors below)
+
 **Produces:** Full interactions per spec
 
 - [ ] **Step 1: Install**
@@ -446,21 +526,43 @@ const PRIORITIES = ["HIGH", "MEDIUM", "LOW"] as const;
 npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities -w apps/web
 ```
 
-- [ ] **Step 2: Drag handle** on card; card body → `navigate(/applications/:id)`
+- [ ] **Step 2: Sensors + motion**
 
-- [ ] **Step 3: Cross-column** (single) — if `canTransition` then `PATCH { status }` else announce error; same status no index change → no API
+```ts
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 
-- [ ] **Step 4: Within-cell reorder** — on drag end, build full `orderedIds` for cell → `POST /api/applications/board/reorder`
+const sensors = useSensors(
+  useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+);
+```
 
-- [ ] **Step 5: Cross-lane single** — `PATCH { priority }`
+Respect `prefers-reduced-motion` (CSS and/or skip/shorten drag overlay transition).
 
-- [ ] **Step 6: Multi-select** Cmd/Ctrl-click; Escape clears; aria selection count
+- [ ] **Step 3: Drag handle** — only handle starts drag; card body click/Enter → `navigate(/applications/:id)`
 
-- [ ] **Step 7: Multi → column** — `POST …/bulk-status`; live region Moved/skipped; multi → lane → no-op message
+- [ ] **Step 4: Live region** — polite `aria-live` node; announce single move, bulk “Moved N, skipped M”, errors, multi→lane unsupported
 
-- [ ] **Step 8: Invalidate** TanStack Query on success; `prefers-reduced-motion` for animations
+- [ ] **Step 5: Cross-column** (single) — if `canTransition` then `PATCH { status }` else announce error; same status **no index change** → no API; restore focus to moved card
 
-- [ ] **Step 9: Commit** `feat: wire Kanban drag drop multi-select and board APIs`
+- [ ] **Step 6: Within-cell reorder** — on drag end, build **full** cell `orderedIds` → `POST /api/applications/board/reorder`; restore focus
+
+- [ ] **Step 7: Cross-lane single** — `PATCH { priority }`; restore focus
+
+- [ ] **Step 8: Multi-select** Cmd/Ctrl-click toggle; Escape clears; announce selection count (no touch checkbox multi in v1)
+
+- [ ] **Step 9: Multi → column** — `POST …/bulk-status`; live region counts; multi → lane → no-op message
+
+- [ ] **Step 10: Invalidate** TanStack Query applications list on success
+
+- [ ] **Step 11: Commit** `feat: wire Kanban drag drop multi-select and board APIs`
 
 ---
 
@@ -482,7 +584,7 @@ npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities -w apps/web
 npm run lint && npm run typecheck && npm run test && npm run test -w apps/web && npm run build
 ```
 
-(If web test script missing until Task 5, ensure it exists.)
+Web `test` script must exist from Task 5.
 
 - [ ] **Step 4: Commit** `docs: add Phase 3 Kanban README and context`
 
@@ -490,33 +592,37 @@ npm run lint && npm run typecheck && npm run test && npm run test -w apps/web &&
 
 ## Spec coverage
 
-| Spec item | Task |
-| --- | --- |
-| `boardOrder` + index + backfill | 1 |
-| pageSize max 100 | 1 |
-| Create append | 1 |
-| PATCH placement + dual cell + priorityRank | 2 |
-| Reorder exact set + `{ ok: true }` | 3 |
-| Bulk sequential + skips + dedupe | 4 |
-| `/board/*` before `/:id` | 3–4 |
-| `canTransition` web | 5 |
-| Board UI load/group/truncation | 6 |
-| DnD + multi + a11y behaviors | 7 |
-| Docs + gate | 8 |
-| Non-goals | respected |
+| Spec item                                  | Task      |
+| ------------------------------------------ | --------- |
+| `boardOrder` + index + backfill            | 1         |
+| pageSize max 100                           | 1         |
+| Create append                              | 1         |
+| PATCH placement + dual cell + priorityRank | 2         |
+| Reorder exact set + `{ ok: true }`         | 3         |
+| Bulk sequential + skips + dedupe           | 4         |
+| `/board/*` before `/:id`                   | 3–4       |
+| `canTransition` web                        | 5         |
+| Board UI load/group/truncation             | 6         |
+| DnD + multi + a11y behaviors               | 7         |
+| Docs + gate                                | 8         |
+| Non-goals                                  | respected |
 
 ## Plan self-review
 
-- Spec coverage: mapped above  
-- Placeholders: none intentional; backfill SQL left to implementer to write correct Postgres `UPDATE … FROM (row_number())` in migration  
-- Types: `boardOrder` on Application; bulk `moved: Application[]`  
-- Route order called out in Tasks 3–4  
+- Spec coverage: mapped above (incl. delete gaps test in Task 2; CSRF via existing hooks in Subagent notes)
+- Placeholders: backfill SQL inlined; Task 5 single path; `APPLICATION_STATUSES` / `BOARD_PRIORITY_LANES` explicit
+- Task 2: `nextBoardOrderInCell` only inside `$transaction`; no manual exclude-self
+- Task 4: depends on Task 2; request `ids` length 1..100 then dedupe
+- Task 7: KeyboardSensor + live region + focus restore + reduced-motion called out
+- Types: `boardOrder` on Application; bulk `moved: Application[]`
+- Route order called out in Tasks 3–4
 
 ## Residual thin (OK)
 
-- Exact Tailwind/motion tokens  
-- Live-region copy for `ALREADY_IN_STATUS`  
-- Whether board components split into multiple files  
+- Exact Tailwind/motion tokens
+- Live-region copy wording for `ALREADY_IN_STATUS`
+- Whether board components split into multiple files
+- Parallel create `boardOrder` collisions (accepted)
 
 ---
 
