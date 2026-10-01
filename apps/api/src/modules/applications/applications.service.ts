@@ -8,6 +8,7 @@ import type {
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import type {
+  BoardBulkStatusBody,
   BoardReorderBody,
   CreateApplicationBody,
   ListApplicationsQuery,
@@ -309,6 +310,65 @@ export async function reorderBoardCell(
     }
     return { ok: true as const };
   });
+}
+
+export async function bulkUpdateStatus(
+  userId: string,
+  input: BoardBulkStatusBody,
+): Promise<{
+  moved: Application[];
+  skipped: { id: string; code: string; message: string }[];
+}> {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const id of input.ids) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+
+  const moved: Application[] = [];
+  const skipped: { id: string; code: string; message: string }[] = [];
+
+  for (const id of ids) {
+    const existing = await prisma.application.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      skipped.push({
+        id,
+        code: "NOT_FOUND",
+        message: "Application not found",
+      });
+      continue;
+    }
+    if (existing.status === input.toStatus) {
+      skipped.push({
+        id,
+        code: "ALREADY_IN_STATUS",
+        message: "Already in target status",
+      });
+      continue;
+    }
+    try {
+      assertTransition(existing.status, input.toStatus);
+    } catch (e) {
+      if (e instanceof AppError && e.code === "INVALID_STATUS_TRANSITION") {
+        skipped.push({ id, code: e.code, message: e.message });
+        continue;
+      }
+      throw e;
+    }
+    const updated = await updateApplication(userId, id, {
+      status: input.toStatus,
+      // inferred UpdateApplicationBody requires these keys; undefined = untouched
+      dateDiscovered: undefined,
+      dateApplied: undefined,
+    });
+    moved.push(updated);
+  }
+
+  return { moved, skipped };
 }
 
 export async function listActivities(

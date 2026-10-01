@@ -137,6 +137,12 @@ export const boardReorderSchema = z.object({
   orderedIds: z.array(z.string().min(1)).min(1).max(100),
 });
 
+export const boardBulkStatusSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(100),
+  toStatus: z.nativeEnum(ApplicationStatus),
+});
+
+export type BoardBulkStatusBody = z.infer<typeof boardBulkStatusSchema>;
 export type BoardReorderBody = z.infer<typeof boardReorderSchema>;
 export type CreateApplicationBody = z.infer<typeof createApplicationSchema>;
 export type UpdateApplicationBody = z.infer<typeof updateApplicationSchema>;

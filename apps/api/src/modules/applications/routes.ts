@@ -3,6 +3,7 @@ import { authGuard } from "../../shared/middleware/auth-guard.js";
 import { parseBody, parseQuery } from "../../shared/validation/parse.js";
 import * as applicationsService from "./applications.service.js";
 import {
+  boardBulkStatusSchema,
   boardReorderSchema,
   createApplicationSchema,
   listApplicationsQuerySchema,
@@ -41,6 +42,16 @@ export async function applicationsRoutes(app: FastifyInstance): Promise<void> {
       const userId = request.userId!;
       const body = parseBody(boardReorderSchema, request.body);
       return applicationsService.reorderBoardCell(userId, body);
+    },
+  );
+
+  app.post(
+    "/board/bulk-status",
+    { preHandler: [authGuard] },
+    async (request) => {
+      const userId = request.userId!;
+      const body = parseBody(boardBulkStatusSchema, request.body);
+      return applicationsService.bulkUpdateStatus(userId, body);
     },
   );
 

@@ -18,8 +18,11 @@ function mutationHeaders(session: Session) {
 
 describe("applications HTTP: board order", () => {
   let app: FastifyInstance;
+  const prevMax = process.env.AUTH_RATE_LIMIT_MAX;
 
   beforeAll(async () => {
+    // File registers >20 users; default auth limit (20/min) would 429.
+    process.env.AUTH_RATE_LIMIT_MAX = "1000";
     app = await buildApp();
   });
 
@@ -30,6 +33,11 @@ describe("applications HTTP: board order", () => {
   afterAll(async () => {
     await app.close();
     await prisma.$disconnect();
+    if (prevMax === undefined) {
+      delete process.env.AUTH_RATE_LIMIT_MAX;
+    } else {
+      process.env.AUTH_RATE_LIMIT_MAX = prevMax;
+    }
   });
 
   async function createApp(session: Session, payload: Record<string, unknown>) {
@@ -411,6 +419,203 @@ describe("applications HTTP: board order", () => {
       expect(res.statusCode).toBe(400);
       expect(res.json().error.code).toBe("VALIDATION_ERROR");
       expect(res.json().error.code).not.toBe("NOT_FOUND");
+    });
+  });
+
+  describe("POST /board/bulk-status", () => {
+    function bulk(session: Session, payload: Record<string, unknown>) {
+      return app.inject({
+        method: "POST",
+        url: "/api/applications/board/bulk-status",
+        headers: mutationHeaders(session),
+        payload,
+      });
+    }
+
+    async function seed(
+      session: Session,
+      status: string,
+      priority: string,
+      company: string,
+    ) {
+      return createApp(session, { company, title: "T", status, priority });
+    }
+
+    async function row(id: string) {
+      return prisma.application.findUniqueOrThrow({ where: { id } });
+    }
+
+    it("mixed move and skip", async () => {
+      const session = await registerAndLogin(app);
+      const a = await seed(session, "SAVED", "MEDIUM", "A");
+      const b = await seed(session, "APPLIED", "MEDIUM", "B");
+      const res = await bulk(session, {
+        ids: [a.id, b.id, "missing"],
+        toStatus: "APPLIED",
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.moved.map((m: { id: string }) => m.id)).toEqual([a.id]);
+      expect(body.moved[0].status).toBe("APPLIED");
+      expect(body.skipped).toEqual([
+        {
+          id: b.id,
+          code: "ALREADY_IN_STATUS",
+          message: "Already in target status",
+        },
+        { id: "missing", code: "NOT_FOUND", message: "Application not found" },
+      ]);
+    });
+
+    it("skips foreign user id as NOT_FOUND", async () => {
+      const session = await registerAndLogin(app);
+      const other = await registerAndLogin(app);
+      const foreign = await seed(other, "SAVED", "MEDIUM", "F");
+      const res = await bulk(session, {
+        ids: [foreign.id],
+        toStatus: "APPLIED",
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().moved).toEqual([]);
+      expect(res.json().skipped[0].code).toBe("NOT_FOUND");
+      expect((await row(foreign.id)).status).toBe("SAVED");
+    });
+
+    it("skips invalid transition softly", async () => {
+      const session = await registerAndLogin(app);
+      const a = await seed(session, "REJECTED", "MEDIUM", "A");
+      const b = await seed(session, "SAVED", "MEDIUM", "B");
+      const res = await bulk(session, {
+        ids: [a.id, b.id],
+        toStatus: "INTERVIEW",
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().moved.map((m: { id: string }) => m.id)).toEqual([b.id]);
+      expect(res.json().skipped).toHaveLength(1);
+      expect(res.json().skipped[0].id).toBe(a.id);
+      expect(res.json().skipped[0].code).toBe("INVALID_STATUS_TRANSITION");
+      expect((await row(a.id)).status).toBe("REJECTED");
+    });
+
+    it("dedupes ids", async () => {
+      const session = await registerAndLogin(app);
+      const a = await seed(session, "SAVED", "MEDIUM", "A");
+      const b = await seed(session, "SAVED", "MEDIUM", "B");
+      const res = await bulk(session, {
+        ids: [a.id, a.id, b.id],
+        toStatus: "APPLIED",
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().moved.map((m: { id: string }) => m.id)).toEqual([
+        a.id,
+        b.id,
+      ]);
+      expect(res.json().skipped).toEqual([]);
+      const acts = await prisma.activity.findMany({
+        where: { applicationId: a.id, type: "STATUS_CHANGED" },
+      });
+      expect(acts).toHaveLength(1);
+    });
+
+    it("activities only for moved", async () => {
+      const session = await registerAndLogin(app);
+      const a = await seed(session, "SAVED", "MEDIUM", "A");
+      const b = await seed(session, "APPLIED", "MEDIUM", "B");
+      await bulk(session, { ids: [a.id, b.id], toStatus: "APPLIED" });
+      const actsA = await prisma.activity.findMany({
+        where: { applicationId: a.id, type: "STATUS_CHANGED" },
+      });
+      const actsB = await prisma.activity.findMany({
+        where: { applicationId: b.id, type: "STATUS_CHANGED" },
+      });
+      expect(actsA).toHaveLength(1);
+      expect(actsB).toHaveLength(0);
+    });
+
+    it("preserves priority and places sequentially in target cell", async () => {
+      const session = await registerAndLogin(app);
+      const existing = await seed(session, "APPLIED", "HIGH", "E");
+      const low = await seed(session, "APPLIED", "LOW", "L");
+      const h1 = await seed(session, "SAVED", "HIGH", "H1");
+      const h2 = await seed(session, "SAVED", "HIGH", "H2");
+      const l1 = await seed(session, "SAVED", "LOW", "L1");
+      const res = await bulk(session, {
+        ids: [h1.id, l1.id, h2.id],
+        toStatus: "APPLIED",
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().moved).toHaveLength(3);
+      const [rExisting, rLow, r1, r2, rl1] = await Promise.all([
+        row(existing.id),
+        row(low.id),
+        row(h1.id),
+        row(h2.id),
+        row(l1.id),
+      ]);
+      expect(r1.priority).toBe("HIGH");
+      expect(r2.priority).toBe("HIGH");
+      expect(rl1.priority).toBe("LOW");
+      expect(rExisting.boardOrder).toBe(0);
+      expect(r1.boardOrder).toBe(1);
+      expect(r2.boardOrder).toBe(2);
+      expect(rLow.boardOrder).toBe(0);
+      expect(rl1.boardOrder).toBe(1);
+    });
+
+    it("rejects empty ids", async () => {
+      const session = await registerAndLogin(app);
+      const res = await bulk(session, { ids: [], toStatus: "APPLIED" });
+      expect(res.statusCode).toBe(400);
+      expect(res.json().error.code).toBe("VALIDATION_ERROR");
+    });
+
+    it("rejects more than 100 ids", async () => {
+      const session = await registerAndLogin(app);
+      const ids = Array.from({ length: 101 }, (_, i) => `id-${i}`);
+      const res = await bulk(session, { ids, toStatus: "APPLIED" });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("rejects invalid toStatus", async () => {
+      const session = await registerAndLogin(app);
+      const res = await bulk(session, { ids: ["x"], toStatus: "NOPE" });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it("rejects missing CSRF", async () => {
+      const session = await registerAndLogin(app);
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/applications/board/bulk-status",
+        headers: { Origin: TEST_ORIGIN, Cookie: session.cookieHeader },
+        payload: { ids: ["x"], toStatus: "APPLIED" },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("rejects unauthenticated", async () => {
+      const session = await registerAndLogin(app);
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/applications/board/bulk-status",
+        headers: {
+          Origin: TEST_ORIGIN,
+          Cookie: `csrf_token=${session.cookies.csrf_token}`,
+          "X-CSRF-Token": session.cookies.csrf_token!,
+        },
+        payload: { ids: ["x"], toStatus: "APPLIED" },
+      });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it("route not shadowed by /:id", async () => {
+      const session = await registerAndLogin(app);
+      const res = await bulk(session, {
+        ids: ["missing-id"],
+        toStatus: "APPLIED",
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().skipped[0].code).toBe("NOT_FOUND");
     });
   });
 
