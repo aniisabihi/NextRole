@@ -1,18 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
+import { InterviewCounts } from "../components/dashboard/InterviewCounts";
+import { MonthlyCreatedChart } from "../components/dashboard/MonthlyCreatedChart";
+import { StatTiles } from "../components/dashboard/StatTiles";
+import { StatusBreakdown } from "../components/dashboard/StatusBreakdown";
 import { ButtonLink } from "../components/ui/Button";
 import { PageHeader } from "../components/ui/PageHeader";
 import { StatusChip } from "../components/ui/StatusChip";
 import { Surface } from "../components/ui/Surface";
 import { apiClient } from "../lib/apiClient";
 import { STATUS_EDGE } from "../lib/statusColors";
-import type { ApplicationListResponse, User } from "../lib/types";
+import type {
+  ApplicationListResponse,
+  DashboardStats,
+  User,
+} from "../lib/types";
 
 export function DashboardPage() {
   const me = useQuery({
     queryKey: ["me"],
     queryFn: () => apiClient<User>("/api/me"),
+  });
+
+  const stats = useQuery({
+    queryKey: ["dashboard-stats"],
+    queryFn: () => apiClient<DashboardStats>("/api/dashboard/stats"),
+    enabled: me.isSuccess,
   });
 
   const recent = useQuery({
@@ -68,6 +82,30 @@ export function DashboardPage() {
           </>
         }
       />
+
+      {stats.isPending ? (
+        <Surface>
+          <p className="text-sm text-ink-muted">Loading stats…</p>
+        </Surface>
+      ) : null}
+      {stats.isError ? (
+        <Surface>
+          <p className="text-sm text-status-rejected-ink">
+            Could not load dashboard stats.
+          </p>
+        </Surface>
+      ) : null}
+      {stats.data ? (
+        <>
+          <StatTiles totals={stats.data.totals} rates={stats.data.rates} />
+          <StatusBreakdown byStatus={stats.data.byStatus} />
+          <MonthlyCreatedChart
+            monthlyCreated={stats.data.monthlyCreated}
+            isEmpty={stats.data.totals.applications === 0}
+          />
+          <InterviewCounts interviews={stats.data.interviews} />
+        </>
+      ) : null}
 
       <Surface as="section" className="flex flex-col gap-4">
         <h2 className="font-display text-xl font-semibold text-ink">
