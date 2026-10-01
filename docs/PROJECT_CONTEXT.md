@@ -63,7 +63,7 @@ Build **incrementally**. Do not implement everything in one phase.
 | **2 — Applications core**          | **Done** (on `main`, PR #2)                | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
 | **3 — Kanban**                     | **Done** (on `main`, PR #3)                | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
 | **4 — Interviews**                 | **Done** (on `main`, PR #4)                | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
-| **UI — Soft Chromatic**            | **In progress** (`feat/ui-soft-chromatic`) | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
+| **UI — Soft Chromatic**            | **Done** (on `main`, PR #5)            | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
 | **5 — Dashboard analytics** (next) | Not started                                | Real aggregates only (no fake numbers)                                                        |
 | **6 — Reminders / BullMQ**         | Not started                                | Worker process + Redis usage                                                                  |
 | **Later**                          | —                                          | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
@@ -179,20 +179,21 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ## Phases left (next up)
 
-1. **Soft Chromatic UI** — branch `feat/ui-soft-chromatic` (presentation-only redesign)
-2. **Dashboard analytics (Phase 5)** — totals, monthly, rates from real rows
-3. **Reminders + BullMQ worker** — independent worker process; Redis required
-4. **Hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
+1. **Dashboard analytics (Phase 5, next)** — totals, monthly, rates from real rows
+2. **Reminders + BullMQ worker** — independent worker process; Redis required
+3. **Hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
 
 ---
 
 ## Soft Chromatic UI
 
+**Status:** done on `main` (PR #5).
+
 **Direction:** pastel status/priority chips, airy paper wash, Fraunces display + Figtree body, pastel purple accent, AppShell brand strip. Light mode only.
 
-**Tokens:** `apps/web/src/index.css` (`@theme`), `apps/web/src/lib/statusColors.ts`, `apps/web/src/components/ui/*`, `AppShell`.
+**Tokens:** `apps/web/src/index.css` (`@theme`), `apps/web/src/lib/statusColors.ts`, `apps/web/src/lib/labels.ts`, `apps/web/src/components/ui/*`, `AppShell`.
 
-**Next session:** merge UI PR, then Phase 5 dashboard analytics design/plan. Reuse applications/interviews services; real aggregates only.
+**Next session:** Phase 5 dashboard analytics design/plan. Reuse applications/interviews services; real aggregates only.
 
 ---
 
@@ -215,7 +216,7 @@ Details: root `README.md`.
 
 ## Agent / session tips
 
-- Next session: after Soft Chromatic UI merges, Phase 5 dashboard analytics design/plan. Reuse applications/interviews services; real aggregates only. Do not re-implement Phases 2–4.
+- Next session: Phase 5 dashboard analytics design/plan. Reuse applications/interviews services; real aggregates only. Do not re-implement Phases 2–4 or Soft Chromatic.
 - Prefer inspecting existing modules before inventing new patterns.
 - Spec > plan > improvisation; document intentional deviations in README.
 - Do not commit secrets (`.env`).

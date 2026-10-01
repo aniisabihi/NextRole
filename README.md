@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1–4 done on `main`:** auth, applications, Kanban, interviews ([PR #4](https://github.com/aniisabihi/NextRole/pull/4)). **UI:** Soft Chromatic redesign on `feat/ui-soft-chromatic`. **Next:** dashboard analytics. See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1–4 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI). **Next:** dashboard analytics. See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
