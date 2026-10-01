@@ -57,15 +57,15 @@ Build **incrementally**. Do not implement everything in one phase.
 
 ## Roadmap / phases
 
-| Phase                       | Status                                                           | Deliverable                                                                                   |
-| --------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **1 — Auth foundation**     | **Done** (on `main`)                                             | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
-| **2 — Applications core**   | **Done** (on `main`, PR #2)                                      | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
-| **3 — Kanban**              | **Done on branch** `feat/phase-3-kanban` (on `main` when merged) | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
-| **4 — Interviews** (next)   | Not started                                                      | Interview CRUD nested under applications                                                      |
-| **5 — Dashboard analytics** | Not started                                                      | Real aggregates only (no fake numbers)                                                        |
-| **6 — Reminders / BullMQ**  | Not started                                                      | Worker process + Redis usage                                                                  |
-| **Later**                   | —                                                                | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
+| Phase                              | Status                                                               | Deliverable                                                                                   |
+| ---------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **1 — Auth foundation**            | **Done** (on `main`)                                                 | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
+| **2 — Applications core**          | **Done** (on `main`, PR #2)                                          | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
+| **3 — Kanban**                     | **Done** (on `main`, PR #3)                                          | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
+| **4 — Interviews**                 | **Done on branch** `feat/phase-4-interviews` (on `main` when merged) | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
+| **5 — Dashboard analytics** (next) | Not started                                                          | Real aggregates only (no fake numbers)                                                        |
+| **6 — Reminders / BullMQ**         | Not started                                                          | Worker process + Redis usage                                                                  |
+| **Later**                          | —                                                                    | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
 
 Phase numbers 3–6 are the intended order; adjust only with an explicit design pass.
 
@@ -128,7 +128,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ---
 
-## Phase 3 — Kanban (on branch `feat/phase-3-kanban`; on `main` when merged)
+## Phase 3 — Kanban (done; on `main`, PR #3)
 
 **Scope:** `/board` only; no interviews, BullMQ, analytics, uploads.
 
@@ -152,10 +152,34 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ---
 
+## Phase 4 — Interviews (done on branch `feat/phase-4-interviews`; on `main` when merged)
+
+**Scope:** interviews nested under applications; no reminders, BullMQ, analytics, uploads.
+
+**Works:**
+
+- `Interview` model: `scheduledAt`, `type` (`PHONE`/`VIDEO`/`ONSITE`/`TECHNICAL`/`OTHER`), `typeLabel` (required for `OTHER`), `status` (`SCHEDULED`/`COMPLETED`/`CANCELLED`/`NO_SHOW`), `interviewer`, `locationOrUrl`, `notes`
+- `GET`/`POST /api/applications/:applicationId/interviews`, `PATCH`/`DELETE .../:id` (`DELETE` → `204`)
+- `scheduledAt` = ISO datetime **with offset** required; compared at epoch-minute precision
+- One-way status: `SCHEDULED` → terminal only; terminal locks `scheduledAt`/`type`/`typeLabel`
+- Cap **50** per application (`INTERVIEW_LIMIT_EXCEEDED`); routes use `parseBody` (400 not 500)
+- New `ActivityType`s: `INTERVIEW_CREATED|UPDATED|STATUS_CHANGED|DELETED`; shared field-diff helper extracted from applications
+- FE: detail-page interviews section (Upcoming = `SCHEDULED` and `>= now`; Past otherwise incl. past-dated `SCHEDULED`), timeline formatting, web transition/patch/datetime/url helpers + tests
+
+**Decisions / residual:** concurrent status change is last-write-wins (documented); no reminders; `window.confirm` for delete.
+
+**Docs:**
+
+- Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase4-design.md`
+- Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase4.md`
+- README Phase 4 section: endpoints, enums, terminal locks, manual checklist
+
+---
+
 ## Phases left (next up)
 
-1. **Interviews (Phase 4, next)** — nested under applications; date/time, type, interviewer, location/URL, notes
-2. **Dashboard analytics** — totals, monthly, rates from real rows
+1. **Dashboard analytics (Phase 5, next)** — totals, monthly, rates from real rows (interviews now available as data)
+2. ~~Interviews~~ — done on branch `feat/phase-4-interviews`
 3. **Reminders + BullMQ worker** — independent worker process; Redis required
 4. **Hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
 
@@ -180,7 +204,7 @@ Details: root `README.md`.
 
 ## Agent / session tips
 
-- Next session: Phase 4 interviews design/plan (after Phase 3 merged). Reuse `assertTransition`, application PATCH, board APIs. Do not re-implement Phases 2–3.
+- Next session: Phase 5 dashboard analytics design/plan (after Phase 4 merged). Reuse applications/interviews services; real aggregates only. Do not re-implement Phases 2–4.
 - Prefer inspecting existing modules before inventing new patterns.
 - Spec > plan > improvisation; document intentional deviations in README.
 - Do not commit secrets (`.env`).

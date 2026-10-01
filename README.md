@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (done on `main`, [PR #2](https://github.com/aniisabihi/NextRole/pull/2)):** applications core. **Phase 3 (on branch `feat/phase-3-kanban`; on `main` once merged):** Kanban board. **Next:** Phase 4 interviews. See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (done on `main`, [PR #2](https://github.com/aniisabihi/NextRole/pull/2)):** applications core. **Phase 3 (done on `main`, [PR #3](https://github.com/aniisabihi/NextRole/pull/3)):** Kanban board. **Phase 4 (on branch `feat/phase-4-interviews`; on `main` once merged):** interviews. **Next:** dashboard analytics. See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
@@ -265,3 +265,66 @@ Run before merging board changes (`npm run dev`, open `/board`, seed a few appli
 
 - Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase3-design.md`
 - Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase3.md`
+
+## Phase 4 — Interviews
+
+Interviews nested under an application: schedule, edit, change status, delete. Detail page shows **Upcoming** and **Past** sections plus interview events in the activity timeline.
+
+### API (Phase 4)
+
+All routes require auth cookies and a caller-owned application (else `404`). Mutations need CSRF + Origin.
+
+| Method   | Path                                              | Success               |
+| -------- | ------------------------------------------------- | --------------------- |
+| `GET`    | `/api/applications/:applicationId/interviews`     | `200` `{ items }`     |
+| `POST`   | `/api/applications/:applicationId/interviews`     | `201` `{ interview }` |
+| `PATCH`  | `/api/applications/:applicationId/interviews/:id` | `200` `{ interview }` |
+| `DELETE` | `/api/applications/:applicationId/interviews/:id` | `204` (no body)       |
+
+- List ordered `scheduledAt` asc, `id` asc tiebreaker.
+- PATCH needs at least one field; no-op PATCH returns the row, no write, no activity.
+- Cap: **50** interviews per application (checked inside the create transaction) → `400` `INTERVIEW_LIMIT_EXCEEDED`.
+- `scheduledAt` must be an ISO-8601 datetime **with offset** (`2026-10-05T14:30:00+02:00` or `Z`); offset-less values → `400`. Stored/returned as UTC. Compared at epoch-minute precision on PATCH.
+- Invalid body → `400` `VALIDATION_ERROR` (never `500`). Empty string for `interviewer`, `locationOrUrl`, `notes` is treated as unset/null.
+
+### Enums
+
+| Enum              | Values                                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `InterviewType`   | `PHONE`, `VIDEO`, `ONSITE`, `TECHNICAL`, `OTHER`                                                                                                 |
+| `InterviewStatus` | `SCHEDULED`, `COMPLETED`, `CANCELLED`, `NO_SHOW`                                                                                                 |
+| `ActivityType`    | Phase 2 values + `INTERVIEW_CREATED`, `INTERVIEW_UPDATED` (field diff), `INTERVIEW_STATUS_CHANGED` (`from`/`to`), `INTERVIEW_DELETED` (snapshot) |
+
+`typeLabel` (max 100) is **required when `type = OTHER`** (empty/blank → `400`) and forced to `null` for every other type.
+
+### One-way status + terminal locks
+
+- `SCHEDULED` → `COMPLETED` | `CANCELLED` | `NO_SHOW`. Terminal states never go back (not even to `SCHEDULED`) → `400` `INVALID_INTERVIEW_STATUS_TRANSITION`.
+- `from === to` → no-op.
+- On a non-`SCHEDULED` interview, `scheduledAt`, `type`, `typeLabel` are **locked** → `400` `INTERVIEW_TERMINAL_FIELDS_LOCKED`. `interviewer`, `locationOrUrl`, `notes` stay editable.
+- A PATCH changing status **and** fields writes two activities (`INTERVIEW_STATUS_CHANGED` + `INTERVIEW_UPDATED`) in one transaction.
+- DELETE writes `INTERVIEW_DELETED` (snapshot) then removes the row; activities survive. Deleting the application cascades interviews.
+- Web mirrors the transition rule in `apps/web/src/lib/interview-status-transitions.ts`; server still validates.
+
+### Known residual: concurrent status race
+
+Status check reads then writes without a row lock. Two concurrent PATCHes on the same `SCHEDULED` interview (e.g. `COMPLETED` vs `CANCELLED`) are **last-write-wins**; both may log a status activity. Acceptable for single-user app; revisit with conditional `updateMany` if needed.
+
+### Manual checklist
+
+Run before merging interview changes (`npm run dev`, open an application detail page).
+
+- [ ] **Create:** add an interview (each type). `OTHER` requires a label; label field hidden/cleared for other types.
+- [ ] **Datetime:** entered local time shows the same wall time after reload; API payload carries an offset.
+- [ ] **Upcoming vs Past:** future `SCHEDULED` appears in Upcoming; past-dated `SCHEDULED` appears in **Past**; completed/cancelled/no-show always in Past.
+- [ ] **Status:** mark Completed / Cancelled / No-show; no way back to Scheduled; date/type controls disabled afterwards.
+- [ ] **Edit:** change interviewer/location/notes on a finished interview (allowed); URL location renders as a safe link.
+- [ ] **Delete:** confirm prompt; row disappears; timeline shows "deleted" entry.
+- [ ] **Timeline:** created / updated (field diff) / status changed / deleted entries read correctly.
+- [ ] **Cap:** 51st interview → error message shown.
+- [ ] **Isolation:** another user's application interviews return `404`.
+
+### Spec / plan
+
+- Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase4-design.md`
+- Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase4.md`
