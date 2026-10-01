@@ -39,6 +39,17 @@ npm run dev
 - API: `http://localhost:3000`
 - Web: `http://localhost:5173` (proxies `/api` → API)
 
+### Demo login
+
+After `npm run db:seed` (once per database — persists until `migrate reset`):
+
+| Field    | Value                 |
+| -------- | --------------------- |
+| email    | `demo@nextrole.local` |
+| password | `password12`          |
+
+Seed upserts that user and, if they have **zero** applications, creates 10 sample apps (mixed statuses / months) plus a few interviews. Re-running seed does **not** wipe apps you edited.
+
 Avoid `npm audit fix --force` — it can break the prisma / `@prisma/client` version pair.
 
 ## Environment
@@ -93,7 +104,7 @@ On refresh rotation, a just-revoked token may still mint a successor within `REF
 | `npm run typecheck`        | `tsc` in workspaces                                    |
 | `npm run format`           | Prettier write                                         |
 | `npm run db:migrate`       | `prisma migrate deploy` (api)                          |
-| `npm run db:seed`          | Seed stub (no Phase 1 data)                            |
+| `npm run db:seed`          | Upsert demo user + apps (idempotent; skips if apps exist) |
 
 ## API (Phase 1)
 
