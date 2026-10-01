@@ -62,7 +62,8 @@ Build **incrementally**. Do not implement everything in one phase.
 | **1 — Auth foundation**            | **Done** (on `main`)                                                 | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
 | **2 — Applications core**          | **Done** (on `main`, PR #2)                                          | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
 | **3 — Kanban**                     | **Done** (on `main`, PR #3)                                          | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
-| **4 — Interviews**                 | **Done on branch** `feat/phase-4-interviews` (on `main` when merged) | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
+| **4 — Interviews**                 | **Done** (on `main`, PR #4)                                          | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
+| **UI — Soft Chromatic**            | **In progress** (`feat/ui-soft-chromatic`)                           | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
 | **5 — Dashboard analytics** (next) | Not started                                                          | Real aggregates only (no fake numbers)                                                        |
 | **6 — Reminders / BullMQ**         | Not started                                                          | Worker process + Redis usage                                                                  |
 | **Later**                          | —                                                                    | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
@@ -152,7 +153,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ---
 
-## Phase 4 — Interviews (done on branch `feat/phase-4-interviews`; on `main` when merged)
+## Phase 4 — Interviews (done on `main`, PR #4)
 
 **Scope:** interviews nested under applications; no reminders, BullMQ, analytics, uploads.
 
@@ -178,10 +179,20 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ## Phases left (next up)
 
-1. **Dashboard analytics (Phase 5, next)** — totals, monthly, rates from real rows (interviews now available as data)
-2. ~~Interviews~~ — done on branch `feat/phase-4-interviews`
+1. **Soft Chromatic UI** — branch `feat/ui-soft-chromatic` (presentation-only redesign)
+2. **Dashboard analytics (Phase 5)** — totals, monthly, rates from real rows
 3. **Reminders + BullMQ worker** — independent worker process; Redis required
 4. **Hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
+
+---
+
+## Soft Chromatic UI
+
+**Direction:** pastel status/priority chips, airy paper wash, Fraunces display + Figtree body, coral accent, AppShell brand strip. Light mode only.
+
+**Tokens:** `apps/web/src/index.css` (`@theme`), `apps/web/src/lib/statusColors.ts`, `apps/web/src/components/ui/*`, `AppShell`.
+
+**Next session:** merge UI PR, then Phase 5 dashboard analytics design/plan. Reuse applications/interviews services; real aggregates only.
 
 ---
 
@@ -204,7 +215,7 @@ Details: root `README.md`.
 
 ## Agent / session tips
 
-- Next session: Phase 5 dashboard analytics design/plan (after Phase 4 merged). Reuse applications/interviews services; real aggregates only. Do not re-implement Phases 2–4.
+- Next session: after Soft Chromatic UI merges, Phase 5 dashboard analytics design/plan. Reuse applications/interviews services; real aggregates only. Do not re-implement Phases 2–4.
 - Prefer inspecting existing modules before inventing new patterns.
 - Spec > plan > improvisation; document intentional deviations in README.
 - Do not commit secrets (`.env`).

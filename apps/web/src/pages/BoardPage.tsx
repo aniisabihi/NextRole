@@ -15,7 +15,10 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { AppNav } from "../components/AppNav";
+import { AppShell } from "../components/AppShell";
+import { Button } from "../components/ui/Button";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Surface } from "../components/ui/Surface";
 import { BoardCardBody } from "../components/board/BoardCard";
 import { BoardColumn } from "../components/board/BoardColumn";
 import { apiClient } from "../lib/apiClient";
@@ -326,23 +329,21 @@ export function BoardPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-none flex-col gap-4 p-6">
-      <AppNav />
-      <h1 className="text-2xl font-semibold">Board</h1>
+    <AppShell wide>
+      <PageHeader
+        title="Board"
+        description="Drag cards across pastel columns. Cmd/Ctrl-click to multi-select."
+      />
 
-      <div className="flex min-h-11 flex-wrap items-center gap-3 text-sm text-neutral-700">
+      <div className="flex min-h-11 flex-wrap items-center gap-3 text-sm text-ink-muted">
         {selectedIds.size > 0 ? (
           <>
-            <span className="font-medium text-neutral-900">
+            <span className="font-medium text-ink">
               {selectedIds.size} selected
             </span>
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="min-h-11 rounded border border-neutral-400 px-3 hover:bg-neutral-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
-            >
+            <Button variant="secondary" type="button" onClick={clearSelection}>
               Clear selection
-            </button>
+            </Button>
             <span>
               Drag a selected card to a column to move all (status only).
             </span>
@@ -358,9 +359,9 @@ export function BoardPage() {
         {message}
       </div>
 
-      {board.isPending ? <p>Loading…</p> : null}
+      {board.isPending ? <p className="text-ink-muted">Loading…</p> : null}
       {board.isError ? (
-        <p className="text-red-600" role="alert">
+        <p className="text-status-rejected-ink" role="alert">
           {board.error instanceof Error
             ? board.error.message
             : "Could not load board."}
@@ -368,13 +369,13 @@ export function BoardPage() {
       ) : null}
 
       {board.data && board.data.total > board.data.items.length ? (
-        <p
-          className="rounded border border-amber-600 bg-amber-50 px-3 py-2 text-sm text-neutral-900"
+        <Surface
+          className="border-priority-medium-ink/30 bg-priority-medium/40 text-sm text-ink"
           role="status"
         >
           Showing {board.data.items.length} of {board.data.total} applications.
           Board shows the most recently updated; others are not shown.
-        </p>
+        </Surface>
       ) : null}
 
       {cells ? (
@@ -406,15 +407,15 @@ export function BoardPage() {
           </div>
           <DragOverlay dropAnimation={reducedMotion ? null : undefined}>
             {activeApp ? (
-              <div className="relative flex rounded border border-neutral-900 bg-white shadow-md">
+              <div className="relative flex rounded-[var(--radius-control)] border-2 border-accent bg-surface shadow-sm">
                 {isMultiDrag ? (
-                  <span className="absolute -right-2 -top-2 z-10 rounded-full bg-neutral-900 px-2 py-0.5 text-xs font-semibold text-white">
+                  <span className="absolute -right-2 -top-2 z-10 rounded-[0.625rem] bg-accent px-2 py-0.5 text-xs font-semibold text-white">
                     {selectedIds.size}
                   </span>
                 ) : null}
                 <div
                   aria-hidden="true"
-                  className="flex min-h-11 min-w-11 items-center justify-center border-r border-neutral-200 text-neutral-700"
+                  className="flex min-h-11 min-w-11 items-center justify-center border-r border-border text-ink-muted"
                 >
                   ⠿
                 </div>
@@ -424,6 +425,6 @@ export function BoardPage() {
           </DragOverlay>
         </DndContext>
       ) : null}
-    </main>
+    </AppShell>
   );
 }

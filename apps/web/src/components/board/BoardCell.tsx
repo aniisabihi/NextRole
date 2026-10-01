@@ -3,6 +3,7 @@ import {
   SortableContext,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { PRIORITY_CHIP } from "../../lib/statusColors";
 import { cardId, cellId } from "../../lib/boardDnd";
 import type { Application, ApplicationStatus, Priority } from "../../lib/types";
 import { BoardCard } from "./BoardCard";
@@ -32,7 +33,9 @@ export function BoardCell({
       aria-label={`${status} ${priority} priority`}
       className="flex flex-col gap-2"
     >
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-700">
+      <h3
+        className={`inline-flex w-fit items-center rounded-[0.625rem] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${PRIORITY_CHIP[priority]}`}
+      >
         {priority} ({items.length})
       </h3>
       <SortableContext
@@ -41,12 +44,12 @@ export function BoardCell({
       >
         <ul
           ref={setNodeRef}
-          className={`flex min-h-11 flex-col gap-2 rounded ${
-            isOver ? "outline-2 outline-dashed outline-neutral-900" : ""
+          className={`flex min-h-11 flex-col gap-2 rounded-[var(--radius-control)] ${
+            isOver ? "outline-2 outline-dashed outline-accent" : ""
           }`}
         >
           {items.length === 0 ? (
-            <li className="flex min-h-11 items-center px-1 text-xs text-neutral-600">
+            <li className="flex min-h-11 items-center px-1 text-xs text-ink-faint">
               No applications
             </li>
           ) : (

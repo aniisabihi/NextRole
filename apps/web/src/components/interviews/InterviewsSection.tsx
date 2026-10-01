@@ -31,11 +31,13 @@ import {
 } from "../../lib/types";
 
 const BTN =
-  "min-h-[44px] rounded border border-neutral-300 px-3 py-2 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50";
+  "min-h-11 rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 text-sm text-ink transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
 const BTN_PRIMARY =
-  "min-h-[44px] rounded bg-neutral-900 px-3 py-2 text-sm text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900 disabled:opacity-50";
+  "min-h-11 rounded-[var(--radius-control)] bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
+const BTN_TONAL =
+  "min-h-11 rounded-[var(--radius-control)] bg-accent-soft px-3 py-2 text-sm font-medium text-accent-hover transition-colors hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
 const INPUT =
-  "rounded border border-neutral-300 px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900";
+  "w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 const TERMINAL_ACTIONS: { status: InterviewStatus; label: string }[] = [
   { status: "COMPLETED", label: "Mark completed" },
@@ -119,7 +121,7 @@ function LocationOrUrl({ value }: { value: string }) {
   if (!href) return <span>{value}</span>;
   return (
     <a
-      className="underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+      className="font-medium text-accent-hover underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
       href={href}
       target="_blank"
       rel="noopener noreferrer"
@@ -184,13 +186,13 @@ function InterviewForm({
 
   return (
     <form
-      className="flex flex-col gap-3 rounded border border-neutral-300 p-3"
+      className="flex flex-col gap-3 rounded-[var(--radius-panel)] border border-border bg-paper/50 p-4"
       aria-label={heading}
       onSubmit={handleSubmit}
     >
-      <p className="text-sm font-medium">{heading}</p>
+      <p className="font-display text-base font-semibold text-ink">{heading}</p>
       {terminal ? (
-        <p className="text-sm text-neutral-600">
+        <p className="text-sm text-ink-muted">
           This interview is {INTERVIEW_STATUS_LABELS[interview!.status]}. Only
           interviewer, location and notes can be edited.
         </p>
@@ -283,7 +285,7 @@ function InterviewForm({
         />
       </label>
       {shownError ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-status-rejected-ink">
           {shownError}
         </p>
       ) : null}
@@ -525,23 +527,29 @@ export function InterviewsSection({
     return (
       <li
         key={i.id}
-        className="flex flex-col gap-2 rounded border border-neutral-200 p-3"
+        className="flex flex-col gap-3 rounded-[var(--radius-panel)] border border-border/70 bg-surface/80 p-4"
       >
         <div className="flex flex-col gap-1 text-sm">
-          <p className="font-medium">
-            {formatWhen(i.scheduledAt)} · {typeText(i)} ·{" "}
-            <span>{INTERVIEW_STATUS_LABELS[i.status]}</span>
+          <p className="font-medium text-ink">
+            {formatWhen(i.scheduledAt)} ·{" "}
+            <span className="rounded-[0.625rem] bg-status-interview px-2 py-0.5 text-xs font-semibold text-status-interview-ink">
+              {typeText(i)}
+            </span>{" "}
+            ·{" "}
+            <span className="rounded-[0.625rem] bg-paper px-2 py-0.5 text-xs font-semibold text-ink-muted">
+              {INTERVIEW_STATUS_LABELS[i.status]}
+            </span>
           </p>
           {i.interviewer ? (
-            <p className="text-neutral-700">Interviewer: {i.interviewer}</p>
+            <p className="text-ink-muted">Interviewer: {i.interviewer}</p>
           ) : null}
           {i.locationOrUrl ? (
-            <p className="break-words text-neutral-700">
+            <p className="break-words text-ink-muted">
               Location: <LocationOrUrl value={i.locationOrUrl} />
             </p>
           ) : null}
           {i.notes ? (
-            <p className="whitespace-pre-wrap text-neutral-700">{i.notes}</p>
+            <p className="whitespace-pre-wrap text-ink-muted">{i.notes}</p>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -563,7 +571,7 @@ export function InterviewsSection({
             ? TERMINAL_ACTIONS.map((a) => (
                 <button
                   key={a.status}
-                  className={BTN}
+                  className={BTN_TONAL}
                   type="button"
                   aria-label={`${a.label}, ${desc}`}
                   disabled={busy}
@@ -602,7 +610,7 @@ export function InterviewsSection({
 
   return (
     <section
-      className="flex flex-col gap-3"
+      className="flex flex-col gap-4 rounded-[var(--radius-panel)] border border-border/80 bg-surface/90 p-5 shadow-[0_1px_0_rgba(26,31,46,0.04)] backdrop-blur-sm"
       aria-labelledby="interviews-heading"
     >
       <div className="flex items-baseline justify-between gap-4">
@@ -610,13 +618,13 @@ export function InterviewsSection({
           id="interviews-heading"
           ref={headingRef}
           tabIndex={-1}
-          className="text-lg font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-neutral-900"
+          className="font-display text-xl font-semibold text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
         >
           Interviews
         </h2>
         <button
           ref={addRef}
-          className={BTN}
+          className={BTN_PRIMARY}
           type="button"
           aria-expanded={panel === "create"}
           disabled={busy || panel === "create"}
@@ -626,11 +634,11 @@ export function InterviewsSection({
         </button>
       </div>
 
-      <div role="status" className="text-sm text-green-700">
+      <div role="status" className="text-sm text-status-screening-ink">
         {successAnnounce}
       </div>
       {mutationError && panel === "closed" ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-status-rejected-ink">
           {mutationError}
         </p>
       ) : null}
@@ -647,10 +655,10 @@ export function InterviewsSection({
       ) : null}
 
       {interviewsQuery.isLoading ? (
-        <p className="text-sm text-neutral-600">Loading interviews…</p>
+        <p className="text-sm text-ink-muted">Loading interviews…</p>
       ) : interviewsQuery.isError ? (
         <div role="alert" className="flex items-center gap-3 text-sm">
-          <p className="text-red-600">
+          <p className="text-status-rejected-ink">
             {errMessage(interviewsQuery.error, "Could not load interviews.")}
           </p>
           <button
@@ -662,18 +670,22 @@ export function InterviewsSection({
           </button>
         </div>
       ) : total === 0 ? (
-        <p className="text-sm text-neutral-600">No interviews yet.</p>
+        <p className="text-sm text-ink-muted">No interviews yet.</p>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           {upcoming.length > 0 ? (
             <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium">Upcoming</h3>
+              <h3 className="font-display text-base font-semibold text-ink">
+                Upcoming
+              </h3>
               <ul className="flex flex-col gap-2">{upcoming.map(renderRow)}</ul>
             </div>
           ) : null}
           {past.length > 0 ? (
             <div className="flex flex-col gap-2">
-              <h3 className="text-sm font-medium">Past</h3>
+              <h3 className="font-display text-base font-semibold text-ink">
+                Past
+              </h3>
               <ul className="flex flex-col gap-2">{past.map(renderRow)}</ul>
             </div>
           ) : null}
