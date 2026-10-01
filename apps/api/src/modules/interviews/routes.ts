@@ -38,4 +38,14 @@ export async function interviewsRoutes(app: FastifyInstance): Promise<void> {
     );
     return { interview };
   });
+
+  app.delete("/:id", { preHandler: [authGuard] }, async (request, reply) => {
+    const userId = request.userId!;
+    const { applicationId, id } = request.params as {
+      applicationId: string;
+      id: string;
+    };
+    await interviewsService.deleteInterview(userId, applicationId, id);
+    return reply.status(204).send();
+  });
 }

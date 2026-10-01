@@ -229,3 +229,34 @@ export async function updateInterview(
     return interview;
   });
 }
+
+export async function deleteInterview(
+  userId: string,
+  applicationId: string,
+  id: string,
+): Promise<void> {
+  await getApplication(userId, applicationId);
+  const existing = await prisma.interview.findFirst({
+    where: { id, applicationId },
+  });
+  if (!existing) {
+    throw new AppError("NOT_FOUND", 404, "Interview not found");
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.activity.create({
+      data: {
+        applicationId,
+        userId,
+        type: "INTERVIEW_DELETED",
+        payload: snapshotPayload(existing),
+      },
+    });
+    const result = await tx.interview.deleteMany({
+      where: { id, applicationId },
+    });
+    if (result.count !== 1) {
+      throw new AppError("NOT_FOUND", 404, "Interview not found");
+    }
+  });
+}

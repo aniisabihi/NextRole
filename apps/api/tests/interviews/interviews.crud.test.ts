@@ -457,4 +457,149 @@ describe("interviews HTTP: create/list", () => {
       expect(res.statusCode).toBe(404);
     });
   });
+  describe("DELETE", () => {
+    // No body on DELETE: drop Content-Type (empty JSON body is rejected).
+    function delHeaders(session: Awaited<ReturnType<typeof loginSession>>) {
+      const headers: Record<string, string> = { ...mutHeaders(session) };
+      delete headers["Content-Type"];
+      return headers;
+    }
+
+    async function createInterview(
+      session: Awaited<ReturnType<typeof loginSession>>,
+      appId: string,
+    ) {
+      const res = await app.inject({
+        method: "POST",
+        url: url(appId),
+        headers: mutHeaders(session),
+        payload: {
+          scheduledAt: isoOffset(120),
+          type: "OTHER",
+          typeLabel: "Panel",
+          interviewer: "Jane",
+          notes: "n",
+        },
+      });
+      expect(res.statusCode).toBe(201);
+      return res.json().interview as { id: string; scheduledAt: string };
+    }
+
+    function del(
+      session: Awaited<ReturnType<typeof loginSession>>,
+      appId: string,
+      id: string,
+    ) {
+      return app.inject({
+        method: "DELETE",
+        url: `${url(appId)}/${id}`,
+        headers: delHeaders(session),
+      });
+    }
+
+    it("DELETE 204 + INTERVIEW_DELETED snapshot + row gone", async () => {
+      const { session, application } = await setup();
+      const iv = await createInterview(session, application.id);
+      const res = await del(session, application.id, iv.id);
+      expect(res.statusCode).toBe(204);
+      expect(res.body).toBe("");
+      expect(await prisma.interview.findUnique({ where: { id: iv.id } })).toBe(
+        null,
+      );
+      const act = await prisma.activity.findFirstOrThrow({
+        where: { applicationId: application.id, type: "INTERVIEW_DELETED" },
+      });
+      expect(act.payload).toEqual({
+        interviewId: iv.id,
+        interviewType: "OTHER",
+        typeLabel: "Panel",
+        status: "SCHEDULED",
+        scheduledAt: iv.scheduledAt,
+        interviewer: "Jane",
+        locationOrUrl: null,
+        notes: "n",
+      });
+    });
+
+    it("cross-user DELETE → 404, row + no activity", async () => {
+      const { session, application } = await setup();
+      const iv = await createInterview(session, application.id);
+      const other = await loginSession(app);
+      const res = await del(other, application.id, iv.id);
+      expect(res.statusCode).toBe(404);
+      expect(await prisma.interview.count({ where: { id: iv.id } })).toBe(1);
+      expect(
+        await prisma.activity.count({
+          where: { applicationId: application.id, type: "INTERVIEW_DELETED" },
+        }),
+      ).toBe(0);
+    });
+
+    it("wrong-app DELETE → 404", async () => {
+      const { session, application } = await setup();
+      const iv = await createInterview(session, application.id);
+      const otherApp = await createApplicationFor(app, session);
+      const res = await del(session, otherApp.id, iv.id);
+      expect(res.statusCode).toBe(404);
+      expect(await prisma.interview.count({ where: { id: iv.id } })).toBe(1);
+    });
+
+    it("unknown id DELETE → 404, no activity", async () => {
+      const { session, application } = await setup();
+      const res = await del(session, application.id, "does-not-exist");
+      expect(res.statusCode).toBe(404);
+      expect(
+        await prisma.activity.count({
+          where: { applicationId: application.id, type: "INTERVIEW_DELETED" },
+        }),
+      ).toBe(0);
+    });
+
+    it("missing CSRF on DELETE → 403", async () => {
+      const { session, application } = await setup();
+      const iv = await createInterview(session, application.id);
+      const res = await app.inject({
+        method: "DELETE",
+        url: `${url(application.id)}/${iv.id}`,
+        headers: { Origin: TEST_ORIGIN, Cookie: session.cookieHeader },
+      });
+      expect(res.statusCode).toBe(403);
+    });
+
+    it("delete at cap frees a slot for a new create", async () => {
+      const { session, application } = await setup();
+      await prisma.interview.createMany({
+        data: Array.from({ length: 50 }, (_, i) => ({
+          applicationId: application.id,
+          scheduledAt: new Date(Date.now() + i * 60_000),
+          type: "PHONE" as const,
+        })),
+      });
+      const first = await prisma.interview.findFirstOrThrow({
+        where: { applicationId: application.id },
+      });
+      expect((await del(session, application.id, first.id)).statusCode).toBe(
+        204,
+      );
+      const res = await app.inject({
+        method: "POST",
+        url: url(application.id),
+        headers: mutHeaders(session),
+        payload: { scheduledAt: isoOffset(), type: "PHONE" },
+      });
+      expect(res.statusCode).toBe(201);
+    });
+
+    it("delete application cascades interviews", async () => {
+      const { session, application } = await setup();
+      const iv = await createInterview(session, application.id);
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/applications/${application.id}`,
+        headers: delHeaders(session),
+      });
+      expect(res.statusCode).toBe(204);
+      expect(await prisma.interview.count({ where: { id: iv.id } })).toBe(0);
+    });
+  });
 });
