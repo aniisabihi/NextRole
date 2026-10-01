@@ -128,7 +128,7 @@ export const listApplicationsQuerySchema = z.object({
     .default("updatedAt"),
   order: z.enum(["asc", "desc"]).default("desc"),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 export type CreateApplicationBody = z.infer<typeof createApplicationSchema>;

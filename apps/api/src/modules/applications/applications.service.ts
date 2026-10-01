@@ -12,6 +12,7 @@ import type {
   ListApplicationsQuery,
   UpdateApplicationBody,
 } from "./schemas.js";
+import { nextBoardOrderInCell } from "./board-order.js";
 import { assertTransition } from "./status-transitions.js";
 
 const PRIORITY_RANK: Record<Priority, number> = {
@@ -50,9 +51,11 @@ export async function createApplication(
   const status = input.status ?? "SAVED";
 
   return prisma.$transaction(async (tx) => {
+    const boardOrder = await nextBoardOrderInCell(tx, userId, status, priority);
     const application = await tx.application.create({
       data: {
         userId,
+        boardOrder,
         company: input.company,
         title: input.title,
         location: input.location,

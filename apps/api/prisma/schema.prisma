@@ -90,6 +90,7 @@ model Application {
   status             ApplicationStatus @default(SAVED)
   priority           Priority          @default(MEDIUM)
   priorityRank       Int               @default(2)
+  boardOrder         Int               @default(0)
   notes              String?
   contactName        String?
   contactEmail       String?
@@ -105,6 +106,7 @@ model Application {
   @@index([userId, company])
   @@index([userId, updatedAt])
   @@index([userId, priority])
+  @@index([userId, status, priority, boardOrder])
 }
 
 model Activity {
