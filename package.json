@@ -5,7 +5,7 @@
     "apps/*"
   ],
   "scripts": {
-    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "dev": "concurrently -n api,web,worker -c blue,green,magenta \"npm run dev -w apps/api\" \"npm run dev -w apps/web\" \"npm run dev:worker -w apps/api\"",
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test -w apps/api",
     "lint": "npm run lint --workspaces --if-present",
