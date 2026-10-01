@@ -329,7 +329,7 @@ export function BoardPage() {
   }
 
   return (
-    <AppShell wide>
+    <AppShell>
       <PageHeader
         title="Board"
         description="Drag cards across pastel columns. Cmd/Ctrl-click to multi-select."
