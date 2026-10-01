@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1–4 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI). **Next:** dashboard analytics. See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1–4 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI). **Phase 5 dashboard analytics done on branch `feat/phase-5-dashboard-analytics`** (pending PR/merge). **Next:** reminders / BullMQ (Phase 6). See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
@@ -38,6 +38,17 @@ npm run dev
 
 - API: `http://localhost:3000`
 - Web: `http://localhost:5173` (proxies `/api` → API)
+
+### Demo login
+
+After `npm run db:seed` (once per database — persists until `migrate reset`):
+
+| Field    | Value                 |
+| -------- | --------------------- |
+| email    | `demo@nextrole.local` |
+| password | `password12`          |
+
+Seed upserts that user and, if they have **zero** applications, creates 10 sample apps (mixed statuses / months) plus a few interviews. Re-running seed does **not** wipe apps you edited.
 
 Avoid `npm audit fix --force` — it can break the prisma / `@prisma/client` version pair.
 
@@ -93,7 +104,7 @@ On refresh rotation, a just-revoked token may still mint a successor within `REF
 | `npm run typecheck`        | `tsc` in workspaces                                    |
 | `npm run format`           | Prettier write                                         |
 | `npm run db:migrate`       | `prisma migrate deploy` (api)                          |
-| `npm run db:seed`          | Seed stub (no Phase 1 data)                            |
+| `npm run db:seed`          | Upsert demo user + apps (idempotent; skips if apps exist) |
 
 ## API (Phase 1)
 
@@ -328,3 +339,47 @@ Run before merging interview changes (`npm run dev`, open an application detail 
 
 - Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase4-design.md`
 - Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase4.md`
+
+## Phase 5 — Dashboard analytics
+
+Real aggregates on `/dashboard`: totals, status breakdown, offer/rejection rates, interview counts, 6-month applications-created chart. Recent applications list unchanged (separate `GET /api/applications?pageSize=5` fetch).
+
+### API (Phase 5)
+
+| Method | Path                   | Success                                                                        |
+| ------ | ---------------------- | ------------------------------------------------------------------------------ |
+| `GET`  | `/api/dashboard/stats` | `200` `{ totals, byStatus, rates, interviews, monthlyCreated }`; auth required |
+
+Read-only (no CSRF). Every aggregate scoped to the authenticated user. Unauthenticated → `401`. Code: `apps/api/src/modules/dashboard/`.
+
+### Formulas
+
+- `terminalCount` = `OFFER + REJECTED + WITHDRAWN`.
+- `offerRate` = `OFFER / max(1, terminalCount)`; `rejectionRate` = `REJECTED / max(1, terminalCount)`. `WITHDRAWN` counts in the denominator. Raw floats in `[0, 1]` (no API rounding); web shows `Math.round(rate * 100)%`.
+- `totals.activePipeline` = applications with status not in `{OFFER, REJECTED, WITHDRAWN}`.
+- `byStatus` always has all eight `ApplicationStatus` keys (`0` if none).
+- `monthlyCreated` = last **6** UTC calendar months (current + 5 prior) by `Application.createdAt`, oldest → newest, `YYYY-MM`, zero-count months included.
+- `interviews.upcoming` = `SCHEDULED` and `scheduledAt >= now`. `interviews.completed` = status `COMPLETED` (all time). `CANCELLED` / `NO_SHOW` counted in neither.
+
+**Overdue `SCHEDULED`:** an interview still `SCHEDULED` with `scheduledAt < now` is neither `upcoming` nor `completed` (intentional; no overdue bucket in Phase 5).
+
+### Charts
+
+CSS/SVG-style bars only — **no chart library**. Month chart is a `<figure>` with an `aria-label` summary and an sr-only list of per-month counts; visual bars are `aria-hidden`.
+
+### Empty state
+
+No fake data. Account with no applications → zeros everywhere, no `NaN` rates (`terminalCount === 0` → both rates `0`), month chart still renders six zero bars with "No applications yet" copy, recent list shows its own empty message.
+
+### Manual smoke
+
+- [ ] Empty user: zeros, empty recent, no `NaN`.
+- [ ] Create applications / interviews: counts and chart update after refresh.
+- [ ] Overdue `SCHEDULED` interview: in neither upcoming nor completed.
+- [ ] Second user: isolated stats.
+- [ ] Chart: month summary reachable by screen reader.
+
+### Spec / plan
+
+- Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase5-design.md`
+- Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase5.md`

@@ -206,3 +206,21 @@ export type Activity = {
 export type ActivityListResponse = {
   items: Activity[];
 };
+
+export type DashboardStats = {
+  totals: {
+    applications: number;
+    activePipeline: number;
+  };
+  byStatus: Record<ApplicationStatus, number>;
+  rates: {
+    offerRate: number;
+    rejectionRate: number;
+    terminalCount: number;
+  };
+  interviews: {
+    upcoming: number;
+    completed: number;
+  };
+  monthlyCreated: Array<{ month: string; count: number }>;
+};

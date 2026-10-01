@@ -10,6 +10,7 @@ import { applicationsRoutes } from "./modules/applications/routes.js";
 import { interviewsRoutes } from "./modules/interviews/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
+import { dashboardRoutes } from "./modules/dashboard/routes.js";
 
 export async function buildApp() {
   const env = loadEnv();
@@ -39,6 +40,7 @@ export async function buildApp() {
   await app.register(interviewsRoutes, {
     prefix: "/api/applications/:applicationId/interviews",
   });
+  await app.register(dashboardRoutes, { prefix: "/api/dashboard" });
 
   return app;
 }
