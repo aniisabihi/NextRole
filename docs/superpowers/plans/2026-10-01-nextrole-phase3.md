@@ -165,13 +165,13 @@ const boardOrder = await nextBoardOrderInCell(tx, userId, status, priority);
 
 - [ ] **Step 1: Failing tests**
 
-| Case | Expect |
-| --- | --- |
-| PATCH status only | `boardOrder` = end of `(newStatus, oldPriority)` |
+| Case                | Expect                                                                   |
+| ------------------- | ------------------------------------------------------------------------ |
+| PATCH status only   | `boardOrder` = end of `(newStatus, oldPriority)`                         |
 | PATCH priority only | `boardOrder` = end of `(oldStatus, newPriority)`; `priorityRank` updated |
-| PATCH both | one placement at `(newStatus, newPriority)` |
-| Same status no-op | no `boardOrder` change (existing early return) |
-| Delete | remaining siblings keep old `boardOrder` (gaps OK) |
+| PATCH both          | one placement at `(newStatus, newPriority)`                              |
+| Same status no-op   | no `boardOrder` change (existing early return)                           |
+| Delete              | remaining siblings keep old `boardOrder` (gaps OK)                       |
 
 - [ ] **Step 2: Implement (single algorithm)**
 
@@ -557,11 +557,11 @@ function groupForBoard(items: Application[]) {
 
 **Droppable / draggable id scheme (locked):**
 
-| Kind | Id format | Example |
-| --- | --- | --- |
-| Column | `column:{status}` | `column:APPLIED` |
+| Kind      | Id format                  | Example             |
+| --------- | -------------------------- | ------------------- |
+| Column    | `column:{status}`          | `column:APPLIED`    |
 | Lane/cell | `cell:{status}:{priority}` | `cell:APPLIED:HIGH` |
-| Card | `card:{applicationId}` | `card:clxyz…` |
+| Card      | `card:{applicationId}`     | `card:clxyz…`       |
 
 Parse on `onDragEnd`: if over `column:*` → status move; if over `cell:*` same status different priority → lane; if over `cell:*` same status+priority (or sortable within cell) → reorder.
 
@@ -676,22 +676,22 @@ npm run lint && npm run typecheck && npm run test && npm run test -w apps/web &&
 
 ## Spec coverage
 
-| Spec item | Task |
-| --- | --- |
-| `boardOrder` + index + backfill | 1 |
-| pageSize max 100 | 1 |
-| Create append | 1 |
-| PATCH placement + dual + priorityRank | 2 |
-| Delete gaps | 2 |
-| Reorder exact set + `{ ok: true }` | 3 |
-| Bulk sequential + skips + dedupe | 4 |
-| `/board/*` before `/:id` | 3–4 |
-| `canTransition` web | 5 |
-| Board UI load/group/truncation | 6 |
-| Single DnD + a11y base | 7 |
-| Multi + bulk | 8 |
-| Docs + gate | 9 |
-| Non-goals | respected |
+| Spec item                             | Task      |
+| ------------------------------------- | --------- |
+| `boardOrder` + index + backfill       | 1         |
+| pageSize max 100                      | 1         |
+| Create append                         | 1         |
+| PATCH placement + dual + priorityRank | 2         |
+| Delete gaps                           | 2         |
+| Reorder exact set + `{ ok: true }`    | 3         |
+| Bulk sequential + skips + dedupe      | 4         |
+| `/board/*` before `/:id`              | 3–4       |
+| `canTransition` web                   | 5         |
+| Board UI load/group/truncation        | 6         |
+| Single DnD + a11y base                | 7         |
+| Multi + bulk                          | 8         |
+| Docs + gate                           | 9         |
+| Non-goals                             | respected |
 
 ## Plan self-review (SDD)
 
