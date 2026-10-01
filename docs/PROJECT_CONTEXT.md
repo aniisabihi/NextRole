@@ -57,16 +57,16 @@ Build **incrementally**. Do not implement everything in one phase.
 
 ## Roadmap / phases
 
-| Phase                       | Status                                              | Deliverable                                                                                   |
-| --------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **1 — Auth foundation**     | **Done** (on `main`)                                | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
-| **2 — Applications core**   | **Done** (on `main`, PR #2)                         | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
-| **3 — Kanban**              | **Done** (on `main`, PR #3)                         | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
-| **4 — Interviews**          | **Done** (on `main`, PR #4)                         | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
-| **UI — Soft Chromatic**     | **Done** (on `main`, PR #5)                         | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
-| **5 — Dashboard analytics** | **Done** (on `main`, PR #6)                         | `GET /api/dashboard/stats`, Soft Chromatic stat tiles + CSS bar chart, real aggregates only   |
-| **6 — Reminders / BullMQ**  | **Done on branch** `phase-6-reminders` (PR pending) | MANUAL/INTERVIEW/FOLLOW_UP reminders, BullMQ worker, bell UI, prefs                           |
-| **Later**                   | —                                                   | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
+| Phase                       | Status                      | Deliverable                                                                                   |
+| --------------------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
+| **1 — Auth foundation**     | **Done** (on `main`)        | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
+| **2 — Applications core**   | **Done** (on `main`, PR #2) | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
+| **3 — Kanban**              | **Done** (on `main`, PR #3) | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
+| **4 — Interviews**          | **Done** (on `main`, PR #4) | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
+| **UI — Soft Chromatic**     | **Done** (on `main`, PR #5) | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
+| **5 — Dashboard analytics** | **Done** (on `main`, PR #6) | `GET /api/dashboard/stats`, Soft Chromatic stat tiles + CSS bar chart, real aggregates only   |
+| **6 — Reminders / BullMQ**  | **Done** (on `main`, PR #7) | MANUAL/INTERVIEW/FOLLOW_UP reminders, BullMQ worker, bell UI, prefs                           |
+| **Later**                   | —                           | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
 
 Phase numbers 3–6 are the intended order; adjust only with an explicit design pass.
 
@@ -200,7 +200,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 ## Phases left (next up)
 
 1. ~~Dashboard analytics (Phase 5)~~ — done on `main` (PR #6)
-2. ~~Reminders + BullMQ worker (Phase 6)~~ — done on branch `phase-6-reminders`, PR pending
+2. ~~Reminders + BullMQ worker (Phase 6)~~ — done on `main` (PR #7)
 3. **Later: hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
 
 ---
@@ -213,7 +213,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 **Tokens:** `apps/web/src/index.css` (`@theme`), `apps/web/src/lib/statusColors.ts`, `apps/web/src/lib/labels.ts`, `apps/web/src/components/ui/*`, `AppShell`.
 
-**Next session:** merge Phase 6 PR, then pick from Later.
+**Next session:** pick from Later.
 
 ---
 
@@ -236,7 +236,7 @@ Details: root `README.md`.
 
 ## Agent / session tips
 
-- Next session: merge Phase 6 PR, then Later items. Do not re-implement Phases 2–6 or Soft Chromatic.
+- Next session: Later items. Do not re-implement Phases 2–6 or Soft Chromatic.
 - Prefer inspecting existing modules before inventing new patterns.
 - Spec > plan > improvisation; document intentional deviations in README.
 - Do not commit secrets (`.env`).
