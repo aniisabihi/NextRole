@@ -396,7 +396,7 @@ export function ApplicationDetailPage() {
           <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Employment type
             <select
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
               value={form.employmentType}
               onChange={(e) => setField("employmentType", e.target.value)}
             >
@@ -411,7 +411,7 @@ export function ApplicationDetailPage() {
           <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Workplace type
             <select
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
               value={form.workplaceType}
               onChange={(e) => setField("workplaceType", e.target.value)}
             >
@@ -428,7 +428,7 @@ export function ApplicationDetailPage() {
           <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Status
             <select
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
               value={form.status}
               onChange={(e) =>
                 setField("status", e.target.value as ApplicationStatus)
@@ -444,7 +444,7 @@ export function ApplicationDetailPage() {
           <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Priority
             <select
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
               value={form.priority}
               onChange={(e) => setField("priority", e.target.value as Priority)}
             >

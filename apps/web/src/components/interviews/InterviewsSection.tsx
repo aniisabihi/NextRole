@@ -38,6 +38,8 @@ const BTN_TONAL =
   "min-h-11 rounded-[var(--radius-control)] bg-accent-soft px-3 py-2 text-sm font-medium text-accent-hover transition-colors hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
 const INPUT =
   "w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
+const SELECT =
+  "w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 const TERMINAL_ACTIONS: { status: InterviewStatus; label: string }[] = [
   { status: "COMPLETED", label: "Mark completed" },
@@ -220,7 +222,7 @@ function InterviewForm({
             Type
             <select
               id={`${uid}-type`}
-              className={INPUT}
+              className={SELECT}
               value={form.type}
               onChange={(e) => set("type", e.target.value as InterviewType)}
             >
