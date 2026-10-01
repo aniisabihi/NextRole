@@ -3,6 +3,8 @@ import type {
   ApplicationStatus,
   EmploymentType,
   Priority,
+  ReminderKind,
+  ReminderStatus,
   WorkplaceType,
 } from "./types";
 
@@ -49,6 +51,27 @@ export const SORT_ORDER_LABELS = {
   asc: "Ascending",
   desc: "Descending",
 } as const;
+
+export const REMINDER_KIND_LABELS: Record<ReminderKind, string> = {
+  MANUAL: "Manual",
+  INTERVIEW: "Interview",
+  FOLLOW_UP: "Follow-up",
+};
+
+export const REMINDER_STATUS_LABELS: Record<ReminderStatus, string> = {
+  SCHEDULED: "Scheduled",
+  DUE: "Due",
+  DISMISSED: "Dismissed",
+  CANCELLED: "Cancelled",
+};
+
+export function reminderKindLabel(kind: ReminderKind): string {
+  return REMINDER_KIND_LABELS[kind];
+}
+
+export function reminderStatusLabel(status: ReminderStatus): string {
+  return REMINDER_STATUS_LABELS[status];
+}
 
 export function statusLabel(status: ApplicationStatus): string {
   return STATUS_LABELS[status];
