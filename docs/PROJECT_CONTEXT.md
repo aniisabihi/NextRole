@@ -188,7 +188,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ## Soft Chromatic UI
 
-**Direction:** pastel status/priority chips, airy paper wash, Fraunces display + Figtree body, coral accent, AppShell brand strip. Light mode only.
+**Direction:** pastel status/priority chips, airy paper wash, Fraunces display + Figtree body, pastel purple accent, AppShell brand strip. Light mode only.
 
 **Tokens:** `apps/web/src/index.css` (`@theme`), `apps/web/src/lib/statusColors.ts`, `apps/web/src/components/ui/*`, `AppShell`.
 
