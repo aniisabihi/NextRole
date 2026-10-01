@@ -6,7 +6,9 @@ import { resetDb } from "../helpers/db.js";
 import { TEST_ORIGIN } from "../helpers/http.js";
 import { registerAndLogin } from "../helpers/applications.js";
 
-function mutationHeaders(session: Awaited<ReturnType<typeof registerAndLogin>>) {
+function mutationHeaders(
+  session: Awaited<ReturnType<typeof registerAndLogin>>,
+) {
   return {
     Origin: TEST_ORIGIN,
     Cookie: session.cookieHeader,
@@ -70,7 +72,9 @@ describe("applications HTTP: activities", () => {
     const session = await registerAndLogin(app);
     const { id } = await createApp(session);
 
-    const before = await prisma.application.findUniqueOrThrow({ where: { id } });
+    const before = await prisma.application.findUniqueOrThrow({
+      where: { id },
+    });
     const activityCountBefore = await prisma.activity.count({
       where: { applicationId: id },
     });

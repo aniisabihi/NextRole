@@ -35,10 +35,7 @@ export async function removeReminderJob(
   jobId: string | null | undefined,
 ): Promise<void> {
   if (!jobId) return;
-  const job = await withTimeout(
-    getReminderQueue().getJob(jobId),
-    "getJob",
-  );
+  const job = await withTimeout(getReminderQueue().getJob(jobId), "getJob");
   if (!job) return;
   try {
     await withTimeout(job.remove(), "job.remove");

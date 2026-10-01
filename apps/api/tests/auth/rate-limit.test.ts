@@ -3,11 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { prisma } from "../../src/db/prisma.js";
 import { createTestUser, resetDb } from "../helpers/db.js";
-import {
-  TEST_ORIGIN,
-  bootstrapCsrf,
-  cookieHeader,
-} from "../helpers/http.js";
+import { TEST_ORIGIN, bootstrapCsrf, cookieHeader } from "../helpers/http.js";
 
 describe("auth rate limit", () => {
   let app: FastifyInstance;

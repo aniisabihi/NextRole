@@ -5,6 +5,7 @@ import type {
   Priority,
   Prisma,
 } from "@prisma/client";
+import { safeRemoveJobs } from "../reminders/reminder-jobs.js";
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import {
@@ -124,8 +125,7 @@ export async function listApplications(
   if (query.workplaceType) where.workplaceType = query.workplaceType;
   if (query.priority) where.priority = query.priority;
 
-  const sortField =
-    query.sort === "priority" ? "priorityRank" : query.sort;
+  const sortField = query.sort === "priority" ? "priorityRank" : query.sort;
 
   const [total, items] = await Promise.all([
     prisma.application.count({ where }),
@@ -164,7 +164,10 @@ export async function updateApplication(
   let statusChanging = false;
 
   for (const [key, raw] of Object.entries(patch) as Array<
-    [keyof UpdateApplicationBody, UpdateApplicationBody[keyof UpdateApplicationBody]]
+    [
+      keyof UpdateApplicationBody,
+      UpdateApplicationBody[keyof UpdateApplicationBody],
+    ]
   >) {
     if (raw === undefined) continue;
 
@@ -258,7 +261,13 @@ export async function deleteApplication(
     throw new AppError("NOT_FOUND", 404, "Application not found");
   }
 
+  // Collect pending jobs before the cascade wipes the rows; clean up post-commit.
+  const pending = await prisma.reminder.findMany({
+    where: { applicationId: id, status: "SCHEDULED", bullJobId: { not: null } },
+    select: { bullJobId: true },
+  });
   await prisma.application.delete({ where: { id } });
+  await safeRemoveJobs(pending.map((r) => r.bullJobId));
 }
 
 export async function reorderBoardCell(

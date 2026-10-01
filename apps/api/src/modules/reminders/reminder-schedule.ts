@@ -13,9 +13,6 @@ export function interviewDueAt(
   return new Date(dueAtMs);
 }
 
-export function followUpDueAt(
-  stayStartedAt: Date,
-  followUpDays: number,
-): Date {
+export function followUpDueAt(stayStartedAt: Date, followUpDays: number): Date {
   return new Date(stayStartedAt.getTime() + followUpDays * MS_PER_DAY);
 }

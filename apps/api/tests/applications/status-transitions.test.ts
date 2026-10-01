@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { AppError } from "../../src/shared/errors/app-error.js";
 import { assertTransition } from "../../src/modules/applications/status-transitions.js";
 
-function expectInvalidTransition(from: ApplicationStatus, to: ApplicationStatus) {
+function expectInvalidTransition(
+  from: ApplicationStatus,
+  to: ApplicationStatus,
+) {
   try {
     assertTransition(from, to);
     expect.unreachable();
