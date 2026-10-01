@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/aniisabihi/NextRole (public)  
 **Local path:** `~/Git/Me/NextRole`  
-**Purpose of this file:** Resume work in a new chat without re-deriving Phase 1–2 decisions. Read this first, then the linked specs/plans.
+**Purpose of this file:** Resume work in a new chat without re-deriving Phase 1–3 decisions. Read this first, then the linked specs/plans.
 
 ---
 
@@ -57,15 +57,15 @@ Build **incrementally**. Do not implement everything in one phase.
 
 ## Roadmap / phases
 
-| Phase                       | Status                                 | Deliverable                                                                                   |
-| --------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **1 — Auth foundation**     | **Done** (on `main`)                   | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
-| **2 — Applications core**   | **Done** (on `main`, PR #2)            | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
-| **3 — Kanban**              | Not started                            | Board UI + drag/move; reuse Phase 2 transition rules                                          |
-| **4 — Interviews**          | Not started                            | Interview CRUD nested under applications                                                      |
-| **5 — Dashboard analytics** | Not started                            | Real aggregates only (no fake numbers)                                                        |
-| **6 — Reminders / BullMQ**  | Not started                            | Worker process + Redis usage                                                                  |
-| **Later**                   | —                                      | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
+| Phase                       | Status                                                           | Deliverable                                                                                   |
+| --------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **1 — Auth foundation**     | **Done** (on `main`)                                             | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
+| **2 — Applications core**   | **Done** (on `main`, PR #2)                                      | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
+| **3 — Kanban**              | **Done on branch** `feat/phase-3-kanban` (on `main` when merged) | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
+| **4 — Interviews** (next)   | Not started                                                      | Interview CRUD nested under applications                                                      |
+| **5 — Dashboard analytics** | Not started                                                      | Real aggregates only (no fake numbers)                                                        |
+| **6 — Reminders / BullMQ**  | Not started                                                      | Worker process + Redis usage                                                                  |
+| **Later**                   | —                                                                | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
 
 Phase numbers 3–6 are the intended order; adjust only with an explicit design pass.
 
@@ -128,13 +128,36 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ---
 
+## Phase 3 — Kanban (on branch `feat/phase-3-kanban`; on `main` when merged)
+
+**Scope:** `/board` only; no interviews, BullMQ, analytics, uploads.
+
+**Works:**
+
+- 8 status columns × priority swimlanes (HIGH → MEDIUM → LOW); `@dnd-kit` pointer + keyboard sensors; drag handle (card click → detail)
+- `Application.boardOrder` (cell = userId, status, priority; migration backfill; append on create/move; delete leaves gaps); `priorityRank` unchanged
+- `POST /api/applications/board/reorder` (exact full cell set, `{ ok: true }`); `POST /api/applications/board/bulk-status` (`{ moved, skipped }`; skip codes `NOT_FOUND`, `ALREADY_IN_STATUS`, `INVALID_STATUS_TRANSITION`); both registered before `/:id`
+- List `pageSize` max raised to **100**; board loads one page, truncation banner when `total > 100`
+- Web `canTransition` mirror (`apps/web/src/lib/status-transitions.ts`) + parity tests
+- Multi-select (Cmd/Ctrl-click) → bulk status only; multi-drag to lane unsupported
+- A11y: live region, focus restore, reduced motion, 44px targets; manual checklist in README
+
+**Decisions:** no shared package for transitions; last-write-wins reorder; no touch multi-select / Shift-range in v1.
+
+**Docs:**
+
+- Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase3-design.md`
+- Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase3.md`
+- README Phase 3 section: endpoints, skip codes, board UX, manual a11y checklist
+
+---
+
 ## Phases left (next up)
 
-1. **Kanban (Phase 3)** — board by status; move cards; server already validates transitions
-2. **Interviews** — date/time, type, interviewer, location/URL, notes
-3. **Dashboard analytics** — totals, monthly, rates from real rows
-4. **Reminders + BullMQ worker** — independent worker process; Redis required
-5. **Hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
+1. **Interviews (Phase 4, next)** — nested under applications; date/time, type, interviewer, location/URL, notes
+2. **Dashboard analytics** — totals, monthly, rates from real rows
+3. **Reminders + BullMQ worker** — independent worker process; Redis required
+4. **Hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
 
 ---
 
@@ -157,7 +180,7 @@ Details: root `README.md`.
 
 ## Agent / session tips
 
-- Next session: Phase 3 Kanban design/plan; reuse `assertTransition` + application PATCH. Do not re-implement Phase 2.
+- Next session: Phase 4 interviews design/plan (after Phase 3 merged). Reuse `assertTransition`, application PATCH, board APIs. Do not re-implement Phases 2–3.
 - Prefer inspecting existing modules before inventing new patterns.
 - Spec > plan > improvisation; document intentional deviations in README.
 - Do not commit secrets (`.env`).

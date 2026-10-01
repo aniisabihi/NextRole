@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (done on `main`, [PR #2](https://github.com/aniisabihi/NextRole/pull/2)):** applications core. **Next:** Phase 3 Kanban. See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (done on `main`, [PR #2](https://github.com/aniisabihi/NextRole/pull/2)):** applications core. **Phase 3 (on branch `feat/phase-3-kanban`; on `main` once merged):** Kanban board. **Next:** Phase 4 interviews. See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
@@ -83,16 +83,17 @@ On refresh rotation, a just-revoked token may still mint a successor within `REF
 
 ## Scripts
 
-| Script               | What                                                   |
-| -------------------- | ------------------------------------------------------ |
-| `npm run dev`        | API (:3000) + web (:5173) in parallel via concurrently |
-| `npm run build`      | Build all workspaces                                   |
-| `npm run test`       | API Vitest suite                                       |
-| `npm run lint`       | ESLint (api + web)                                     |
-| `npm run typecheck`  | `tsc` in workspaces                                    |
-| `npm run format`     | Prettier write                                         |
-| `npm run db:migrate` | `prisma migrate deploy` (api)                          |
-| `npm run db:seed`    | Seed stub (no Phase 1 data)                            |
+| Script                     | What                                                   |
+| -------------------------- | ------------------------------------------------------ |
+| `npm run dev`              | API (:3000) + web (:5173) in parallel via concurrently |
+| `npm run build`            | Build all workspaces                                   |
+| `npm run test`             | API Vitest suite                                       |
+| `npm run test -w apps/web` | Web Vitest suite (e.g. `canTransition` parity)         |
+| `npm run lint`             | ESLint (api + web)                                     |
+| `npm run typecheck`        | `tsc` in workspaces                                    |
+| `npm run format`           | Prettier write                                         |
+| `npm run db:migrate`       | `prisma migrate deploy` (api)                          |
+| `npm run db:seed`          | Seed stub (no Phase 1 data)                            |
 
 ## API (Phase 1)
 
@@ -149,18 +150,18 @@ Web routes: `/applications`, `/applications/new`, `/applications/:id`. Dashboard
 
 Two independent dimensions (not one combined enum):
 
-| Field            | Values                                              | Meaning                          |
-| ---------------- | --------------------------------------------------- | -------------------------------- |
-| `employmentType` | `FULL_TIME`, `PART_TIME`, `CONTRACT`, `INTERNSHIP`, `OTHER` | Contract / hours relationship   |
-| `workplaceType`  | `ON_SITE`, `HYBRID`, `REMOTE`                       | Where work happens               |
+| Field            | Values                                                      | Meaning                       |
+| ---------------- | ----------------------------------------------------------- | ----------------------------- |
+| `employmentType` | `FULL_TIME`, `PART_TIME`, `CONTRACT`, `INTERNSHIP`, `OTHER` | Contract / hours relationship |
+| `workplaceType`  | `ON_SITE`, `HYBRID`, `REMOTE`                               | Where work happens            |
 
 ### Enums
 
-| Enum               | Values                                                                                         |
-| ------------------ | ---------------------------------------------------------------------------------------------- |
-| `ApplicationStatus`| `SAVED`, `APPLIED`, `SCREENING`, `INTERVIEW`, `TECHNICAL_INTERVIEW`, `OFFER`, `REJECTED`, `WITHDRAWN` |
-| `Priority`         | `LOW`, `MEDIUM`, `HIGH` (sort via `priorityRank`: 1 / 2 / 3)                                   |
-| `ActivityType`     | `APPLICATION_CREATED`, `STATUS_CHANGED`, `FIELDS_UPDATED`                                      |
+| Enum                | Values                                                                                                |
+| ------------------- | ----------------------------------------------------------------------------------------------------- |
+| `ApplicationStatus` | `SAVED`, `APPLIED`, `SCREENING`, `INTERVIEW`, `TECHNICAL_INTERVIEW`, `OFFER`, `REJECTED`, `WITHDRAWN` |
+| `Priority`          | `LOW`, `MEDIUM`, `HIGH` (sort via `priorityRank`: 1 / 2 / 3)                                          |
+| `ActivityType`      | `APPLICATION_CREATED`, `STATUS_CHANGED`, `FIELDS_UPDATED`                                             |
 
 ### Soft status transition matrix
 
@@ -181,16 +182,16 @@ Two independent dimensions (not one combined enum):
 
 All routes require auth cookies. Mutations need CSRF + Origin (same as Phase 1).
 
-| Method   | Path                               | Success                        |
-| -------- | ---------------------------------- | ------------------------------ |
+| Method   | Path                               | Success                                  |
+| -------- | ---------------------------------- | ---------------------------------------- |
 | `GET`    | `/api/applications`                | `200` `{ items, total, page, pageSize }` |
-| `POST`   | `/api/applications`                | `201` `{ application }`        |
-| `GET`    | `/api/applications/:id`            | `200` `{ application }`        |
-| `PATCH`  | `/api/applications/:id`            | `200` `{ application }`        |
-| `DELETE` | `/api/applications/:id`            | `204`                          |
-| `GET`    | `/api/applications/:id/activities` | `200` `{ items }` newest-first |
+| `POST`   | `/api/applications`                | `201` `{ application }`                  |
+| `GET`    | `/api/applications/:id`            | `200` `{ application }`                  |
+| `PATCH`  | `/api/applications/:id`            | `200` `{ application }`                  |
+| `DELETE` | `/api/applications/:id`            | `204`                                    |
+| `GET`    | `/api/applications/:id/activities` | `200` `{ items }` newest-first           |
 
-**List query:** `q`, `status`, `company`, `employmentType`, `workplaceType`, `priority`, `sort` (`updatedAt` \| `createdAt` \| `dateApplied` \| `priority` \| `status`), `order` (`asc` \| `desc`), `page`, `pageSize` (max 50).
+**List query:** `q`, `status`, `company`, `employmentType`, `workplaceType`, `priority`, `sort` (`updatedAt` \| `createdAt` \| `dateApplied` \| `priority` \| `status`), `order` (`asc` \| `desc`), `page`, `pageSize` (max 50 in Phase 2; **max 100 since Phase 3**, see below).
 
 **Activities:** soft cap **200** newest rows per application (no pagination UI yet). No public write API — rows created as side effects of create/PATCH.
 
@@ -200,3 +201,67 @@ All routes require auth cookies. Mutations need CSRF + Origin (same as Phase 1).
 
 - Spec: `docs/superpowers/specs/2026-09-30-nextrole-phase2-design.md`
 - Plan: `docs/superpowers/plans/2026-09-30-nextrole-phase2.md`
+
+## Phase 3 — Kanban board
+
+Route `/board` (nav: Dashboard · Applications · Board). Eight status columns, priority swimlanes (HIGH → MEDIUM → LOW) inside each column, drag to change status, drag within a cell to reorder, Cmd/Ctrl-click multi-select for bulk status moves.
+
+### API (Phase 3)
+
+All routes require auth cookies; mutations need CSRF + Origin. `/board/*` routes are registered **before** `/:id`.
+
+| Method  | Path                                  | Success                                              |
+| ------- | ------------------------------------- | ---------------------------------------------------- |
+| `GET`   | `/api/applications`                   | `pageSize` max now **100** (was 50); `101` → `400`   |
+| `PATCH` | `/api/applications/:id`               | status/priority change also places `boardOrder`      |
+| `POST`  | `/api/applications/board/reorder`     | `200` `{ ok: true }`                                 |
+| `POST`  | `/api/applications/board/bulk-status` | `200` `{ moved: Application[], skipped: Skipped[] }` |
+
+**`boardOrder`** — int on `Application`, order within cell `(userId, status, priority)`. Index `(userId, status, priority, boardOrder)`. Migration backfills `0..n-1` per cell by `updatedAt desc`. Create and moves append to end of target cell. Delete leaves gaps (no compaction). `priorityRank` unchanged (still set whenever `priority` is written).
+
+**Placement rules:** status-only PATCH → end of `(newStatus, priority)`. Priority-only PATCH → end of `(status, newPriority)`. Both in one PATCH → single placement in final cell. Reorder writes no activity rows.
+
+**`POST /api/applications/board/reorder`** body `{ status, priority, orderedIds }`. `orderedIds` must be the **exact full set** of ids in that cell (no missing, extra or duplicate; 1–100). Any violation (incl. unknown / not-owned id) → `400 VALIDATION_ERROR`, nothing written. Atomic; last-write-wins on concurrent edits.
+
+**`POST /api/applications/board/bulk-status`** body `{ ids, toStatus }`. `ids` deduped (first-seen order), 1–100 unique, else `400 VALIDATION_ERROR`. Processed sequentially, each id independent (earlier successes persist). Each card keeps its priority and is appended to `(toStatus, priority)`. Always `200`.
+
+Skip codes in `skipped[]` (`{ id, code, message }`):
+
+| Code                        | When                                               |
+| --------------------------- | -------------------------------------------------- |
+| `NOT_FOUND`                 | id missing or not owned by caller                  |
+| `ALREADY_IN_STATUS`         | card already at `toStatus` (no activity, no write) |
+| `INVALID_STATUS_TRANSITION` | `assertTransition` denies (Phase 2 matrix)         |
+
+### Board UX
+
+- Loads `GET /api/applications?pageSize=100&sort=updatedAt&order=desc&page=1`, groups client-side by status × priority, sorts by `boardOrder`.
+- If `total > 100`: banner "Showing N of M" (most recently updated only); Applications list stays source of truth.
+- Web mirrors the transition matrix in `apps/web/src/lib/status-transitions.ts` (`canTransition`); illegal single drops are blocked client-side with an announcement. Server still validates.
+- Drag **handle** starts a drag; clicking the card body opens detail.
+- Same-status drop with no index change → no API call. Within-cell drop → `board/reorder`. Cross-lane (same column), single card → priority PATCH. Cross-column → status PATCH.
+- Multi-select: Cmd/Ctrl-click toggles, Escape clears, count announced. Dragging a selected card to a **column** → `bulk-status` and announces "Moved N, skipped M". Multi-drag to a lane is unsupported (message, no-op). No touch/checkbox multi-select, no Shift-range in v1.
+- Focus returns to the moved card's handle after a drop.
+- Motion respects `prefers-reduced-motion`.
+
+### Manual a11y checklist
+
+Run before merging board changes (`npm run dev`, open `/board`, seed a few applications across statuses and priorities).
+
+- [ ] **Keyboard reach:** Tab from nav reaches board; each column is a labeled region; focus ring visible on handles, cards, buttons.
+- [ ] **Keyboard column move:** focus a drag handle, Space/Enter to pick up, Arrow keys to another column, Space/Enter to drop. Status changes (legal move) or an error is announced (illegal move).
+- [ ] **Keyboard lane move:** same, arrow into a different priority lane in the same column; priority updates.
+- [ ] **Keyboard reorder:** pick up, arrow within the same cell, drop; order persists after reload. Escape cancels and announces cancel.
+- [ ] **Live region:** screen reader (VoiceOver: Cmd+F5) announces pick-up, over-target, and outcome ("Moved …", "Reordered …", "Cannot move …", "Moved N, skipped M").
+- [ ] **Focus restore:** after drop (success, reject or error) focus returns to the moved card's handle.
+- [ ] **Reduced motion:** enable OS "Reduce motion"; drag settle/overlay animation absent.
+- [ ] **Handle vs click:** clicking / Enter on card body opens detail without dragging; only the handle starts a drag; a short pointer jitter does not drag.
+- [ ] **Multi-select:** Cmd (macOS) / Ctrl (other) click toggles selection; count announced; Escape clears; "Clear selection" button works; drag a selected card to a column moves all and announces "Moved N, skipped M"; multi-drag to a lane shows unsupported message.
+- [ ] **Not color-only:** status and priority readable as text on every card.
+- [ ] **Contrast / targets:** text and controls meet WCAG AA; handles and buttons ≈ 44px.
+- [ ] **Truncation banner:** with >100 applications, banner "Showing N of M" appears (no link yet; use Applications nav).
+
+### Spec / plan
+
+- Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase3-design.md`
+- Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase3.md`

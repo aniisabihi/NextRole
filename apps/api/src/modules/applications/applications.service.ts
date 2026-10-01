@@ -8,10 +8,13 @@ import type {
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import type {
+  BoardBulkStatusBody,
+  BoardReorderBody,
   CreateApplicationBody,
   ListApplicationsQuery,
   UpdateApplicationBody,
 } from "./schemas.js";
+import { nextBoardOrderInCell } from "./board-order.js";
 import { assertTransition } from "./status-transitions.js";
 
 const PRIORITY_RANK: Record<Priority, number> = {
@@ -50,9 +53,11 @@ export async function createApplication(
   const status = input.status ?? "SAVED";
 
   return prisma.$transaction(async (tx) => {
+    const boardOrder = await nextBoardOrderInCell(tx, userId, status, priority);
     const application = await tx.application.create({
       data: {
         userId,
+        boardOrder,
         company: input.company,
         title: input.title,
         location: input.location,
@@ -203,7 +208,24 @@ export async function updateApplication(
     return existing;
   }
 
+  const priorityChanging =
+    patch.priority !== undefined && patch.priority !== existing.priority;
+  const cellChanged = statusChanging || priorityChanging;
+  const finalStatus = statusChanging ? nextStatus! : existing.status;
+  const finalPriority = priorityChanging
+    ? (patch.priority as Priority)
+    : existing.priority;
+
   return prisma.$transaction(async (tx) => {
+    if (cellChanged) {
+      // Row still has old status/priority until update — not in target cell aggregate.
+      data.boardOrder = await nextBoardOrderInCell(
+        tx,
+        userId,
+        finalStatus,
+        finalPriority,
+      );
+    }
     const application = await tx.application.update({
       where: { id },
       data,
@@ -248,6 +270,105 @@ export async function deleteApplication(
   }
 
   await prisma.application.delete({ where: { id } });
+}
+
+export async function reorderBoardCell(
+  userId: string,
+  input: BoardReorderBody,
+): Promise<{ ok: true }> {
+  const unique = new Set(input.orderedIds);
+  if (unique.size !== input.orderedIds.length) {
+    throw new AppError("VALIDATION_ERROR", 400, "orderedIds must be unique");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const cell = await tx.application.findMany({
+      where: {
+        userId,
+        status: input.status,
+        priority: input.priority,
+      },
+      select: { id: true },
+    });
+    const cellIds = new Set(cell.map((a) => a.id));
+    if (
+      cellIds.size !== input.orderedIds.length ||
+      input.orderedIds.some((id) => !cellIds.has(id))
+    ) {
+      throw new AppError(
+        "VALIDATION_ERROR",
+        400,
+        "orderedIds must match cell membership",
+      );
+    }
+
+    for (let i = 0; i < input.orderedIds.length; i++) {
+      await tx.application.update({
+        where: { id: input.orderedIds[i]! },
+        data: { boardOrder: i },
+      });
+    }
+    return { ok: true as const };
+  });
+}
+
+export async function bulkUpdateStatus(
+  userId: string,
+  input: BoardBulkStatusBody,
+): Promise<{
+  moved: Application[];
+  skipped: { id: string; code: string; message: string }[];
+}> {
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const id of input.ids) {
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+
+  const moved: Application[] = [];
+  const skipped: { id: string; code: string; message: string }[] = [];
+
+  for (const id of ids) {
+    const existing = await prisma.application.findFirst({
+      where: { id, userId },
+    });
+    if (!existing) {
+      skipped.push({
+        id,
+        code: "NOT_FOUND",
+        message: "Application not found",
+      });
+      continue;
+    }
+    if (existing.status === input.toStatus) {
+      skipped.push({
+        id,
+        code: "ALREADY_IN_STATUS",
+        message: "Already in target status",
+      });
+      continue;
+    }
+    try {
+      assertTransition(existing.status, input.toStatus);
+    } catch (e) {
+      if (e instanceof AppError && e.code === "INVALID_STATUS_TRANSITION") {
+        skipped.push({ id, code: e.code, message: e.message });
+        continue;
+      }
+      throw e;
+    }
+    const updated = await updateApplication(userId, id, {
+      status: input.toStatus,
+      // inferred UpdateApplicationBody requires these keys; undefined = untouched
+      dateDiscovered: undefined,
+      dateApplied: undefined,
+    });
+    moved.push(updated);
+  }
+
+  return { moved, skipped };
 }
 
 export async function listActivities(
