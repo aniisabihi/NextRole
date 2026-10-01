@@ -1,7 +1,7 @@
 # NextRole — Phase 3 Design (Kanban)
 
 **Date:** 2026-10-01  
-**Status:** Approved — implementation plan next  
+**Status:** Approved — implementation plan next (review fixes applied)  
 **Path:** `~/Git/Me/NextRole`  
 **Depends on:** Phase 2 applications core (`docs/superpowers/specs/2026-09-30-nextrole-phase2-design.md`)
 
@@ -20,29 +20,36 @@ Stop before interviews, reminders/BullMQ, and dashboard analytics.
 | Swimlanes | By **priority**: HIGH → MEDIUM → LOW |
 | Cross-column drag | Status change via existing transition rules |
 | Within-cell drag | Persist `boardOrder` |
-| Cross-lane (same column) | `PATCH` `priority` + append `boardOrder` in new cell |
+| Cross-lane (same column) | Single-card only: `PATCH` `priority` + append `boardOrder` in new cell |
+| Multi → other lane | **Unsupported** (status bulk only; ignore / no-op lane multi-drop) |
 | Multi-select | Bulk **status** drop only; illegal cards skipped + reported |
+| Bulk status placement | Preserve each card’s **priority**; append to end of `(toStatus, thatPriority)` cell |
 | Illegal single drop | FE blocks via `canTransition`; server still validates |
-| Board load | Existing list endpoint; client groups/sorts; soft cap + truncation banner |
-| Reorder API | Dedicated atomic `POST …/board/reorder` |
-| Bulk status API | Dedicated `POST …/board/bulk-status` |
+| Same-column drop | `from === to` → no API call (no-op) |
+| Board load | List endpoint; client groups/sorts; **`pageSize` max raised to 100** |
+| Truncation | Cap is approximate (`sort=updatedAt`); overflow → banner + Applications list |
+| Reorder API | Dedicated atomic `POST …/board/reorder`; response `{ ok: true }` |
+| Reorder membership | `orderedIds` must be **exact full set** of ids currently in that cell |
+| Concurrent reorder | Last-write-wins (no cell versioning in Phase 3) |
+| Bulk status API | Dedicated `POST …/board/bulk-status`; process **sequentially** in request |
 | Transition mirror | Duplicate pure `canTransition` in web (no shared package) |
-| DnD | `@dnd-kit` with pointer + keyboard sensors |
+| DnD | `@dnd-kit` with pointer + keyboard sensors; **drag handle** (click card → detail) |
+| Kanban cards | Interaction containers (allowed “card” exception for this surface) |
 | UX/a11y | First-class gate for Phase 3+ (see below) |
-| Non-goals | Interviews, BullMQ, analytics, file uploads, custom columns, multi-reorder within cell, shared workspace package |
+| Non-goals | Interviews, BullMQ, analytics, file uploads, custom columns, multi-reorder within cell, multi lane-move, shared workspace package, optimistic concurrency on reorder |
 
 ## Architecture
 
 ```text
 Browser /board
-  │  GET /api/applications?pageSize=100&…
+  │  GET /api/applications?pageSize=100&sort=updatedAt&order=desc
   │  group by status × priority; sort boardOrder
   │  canTransition(from, to)  // web mirror
   ▼
 Fastify modules/applications
   │  PATCH /:id { status | priority | … }   // existing + boardOrder side-effects
-  │  POST /board/reorder
-  │  POST /board/bulk-status
+  │  POST /api/applications/board/reorder
+  │  POST /api/applications/board/bulk-status
   │  assertTransition (unchanged matrix)
   ▼
 PostgreSQL Application (+ boardOrder)
@@ -63,8 +70,9 @@ Acceptance (Phase 3 gate):
 - WCAG AA contrast for text/controls; status/priority not color-only (text/icons too).
 - Respect `prefers-reduced-motion` for drag/settle motion.
 - Practical hit targets (~44px) where reasonable.
+- Drag via **handle** so primary click/Enter on card opens detail without starting a drag.
 
-Visual: intentional hierarchy and spacing on existing Tailwind tokens—elevate Phase 2’s functional look; do not invent a second design system or generic “AI purple” chrome.
+Visual: intentional hierarchy and spacing on existing Tailwind tokens—elevate Phase 2’s functional look; do not invent a second design system or generic “AI purple” chrome. Board cards are the interaction unit for Kanban (explicit exception to “default: no cards” for this surface).
 
 ## Data model
 
@@ -81,9 +89,10 @@ For each `(userId, status, priority)` group, set `boardOrder = 0..n-1` ordered b
 
 ### Side-effects on writes
 
-- **Status change** (single PATCH or bulk): place card at **end** of target status cell for its current priority (`max(boardOrder)+1`, or `0` if empty). Emit `STATUS_CHANGED` activity as Phase 2.
-- **Priority change** (detail or cross-lane drag): place at end of new `(status, priority)` cell. Emit `FIELDS_UPDATED` for priority when via field update path; lane drag may use same PATCH priority semantics.
-- **Reorder only**: update `boardOrder` values; **no** activity rows (noise).
+- **Create:** append `boardOrder = max+1` (or `0`) in the create `(status, priority)` cell — same placement rule as moves (avoid default-`0` collisions).
+- **Status change** (single PATCH or bulk): place card at **end** of target `(toStatus, currentPriority)` cell (`max(boardOrder)+1`, or `0` if empty). Emit `STATUS_CHANGED` activity as Phase 2.
+- **Priority change** (detail or **single-card** cross-lane drag): place at end of new `(status, priority)` cell. Emit `FIELDS_UPDATED` for priority when via field update / priority PATCH path.
+- **Reorder only:** update `boardOrder` values; **no** activity rows (noise).
 
 ## API
 
@@ -91,12 +100,12 @@ All routes authenticated. Mutations: existing CSRF + Origin.
 
 | Method | Path | Success |
 | --- | --- | --- |
-| `GET` | `/api/applications` | Unchanged list envelope; board uses high `pageSize` (max stays **50** unless raised—see Open pin) |
-| `PATCH` | `/api/applications/:id` | Unchanged + `boardOrder` placement rules when `status` / `priority` change |
-| `POST` | `/api/applications/board/reorder` | `200` `{ items: Application[] }` or `{ ok: true }` for that cell |
-| `POST` | `/api/applications/board/bulk-status` | `200` `{ moved: Application[], skipped: { id, code, message }[] }` |
+| `GET` | `/api/applications` | List envelope; **`pageSize` max = 100** (Phase 3 schema change) |
+| `PATCH` | `/api/applications/:id` | Unchanged + `boardOrder` placement when `status` / `priority` change |
+| `POST` | `/api/applications/board/reorder` | `200 { ok: true }` |
+| `POST` | `/api/applications/board/bulk-status` | `200 { moved: Application[], skipped: { id, code, message }[] }` |
 
-### `POST /board/reorder`
+### `POST /api/applications/board/reorder`
 
 Body:
 
@@ -110,11 +119,14 @@ Body:
 
 Rules:
 
-- Caller owns every id; each application must currently be in that `(status, priority)` cell—else `400 VALIDATION_ERROR` or `404` for foreign/missing.
+- Empty `orderedIds` → `400 VALIDATION_ERROR`.
+- Load all applications for caller in that `(status, priority)` cell.
+- `orderedIds` must contain **exactly** those ids (same set, same length, no extras/missing, duplicates forbidden) → else `400 VALIDATION_ERROR` listing the problem.
+- Missing / not-owned id appearing in `orderedIds` → treat as validation failure for the whole reorder (`400`), not partial apply.
 - Atomically set `boardOrder` to index in `orderedIds`.
-- Empty `orderedIds` → `400`.
+- Concurrent editors: **last-write-wins** (no cell etag in Phase 3).
 
-### `POST /board/bulk-status`
+### `POST /api/applications/board/bulk-status`
 
 Body:
 
@@ -127,19 +139,19 @@ Body:
 
 Rules:
 
-- Process each id independently in a transaction **per id** or one transaction with partial success recorded (prefer **per-id** attempts so one failure doesn’t roll back others).
-- Not found / not owned → skip with code `NOT_FOUND` (no existence leak beyond skip).
+- Process ids **sequentially** in request order (avoid parallel `boardOrder` races on the same target cell).
+- Each id: own transaction (or sequential steps) so one failure doesn’t roll back prior successes.
+- Not found / not owned → skip `NOT_FOUND` (no existence leak beyond skip).
 - `assertTransition` fail → skip `INVALID_STATUS_TRANSITION`.
-- Success → same as status PATCH (activity + boardOrder append in target cell).
+- Success → same as status PATCH: activity + append in `(toStatus, card.priority)` cell (**priority preserved**).
 - Response always `200` with `moved` / `skipped` arrays (not multi-status HTTP).
+- Empty `ids` → `400 VALIDATION_ERROR`.
 
 ### List / board load
 
-- FE: `GET /api/applications?pageSize=50&sort=updatedAt&order=desc` (or `boardOrder` if added to sort enum).
+- FE: `GET /api/applications?pageSize=100&sort=updatedAt&order=desc`.
 - Client groups by `status` × `priority`, sorts each cell by `boardOrder` asc.
-- If `total > pageSize`: show truncation banner + link to Applications list.
-
-**Open pin for plan:** Either raise list `pageSize` max to **100** for board, or keep 50 and document. Prefer **raise max to 100** in Phase 3 schemas only.
+- If `total > pageSize`: truncation banner + link to Applications list. **Limitation:** overflow set is “most recently updated,” not “missing from middle of a column”—list remains source of truth for full data.
 
 ## Frontend
 
@@ -149,27 +161,33 @@ Rules:
 | Existing `/applications*` | Unchanged primary CRUD |
 
 - AppNav: Dashboard · Applications · Board.
-- Card primary click → detail; drag handle / drag does not navigate.
+- Card body click / Enter → detail; **drag handle** initiates DnD (no accidental navigate).
+- Single-card: cross-column → status API if `canTransition`; else no-op + error announcement. Same status column drop → no API.
+- Single-card: cross-lane → priority PATCH.
 - Multi-select: Cmd/Ctrl-click toggle; Escape clears; announce selection count.
-- Shift-range select: optional stretch—**out of v1** unless cheap.
+- Multi-drag to **column** → `bulk-status`; live region “Moved N, skipped M”.
+- Multi-drag to **lane** → unsupported (no-op + brief message).
+- Shift-range select: **out of v1**.
 - Library: `@dnd-kit`.
-- Mirror: `apps/web/src/lib/status-transitions.ts` with `canTransition` matching API matrix (unit-test parity cases).
+- Mirror: `apps/web/src/lib/status-transitions.ts` with `canTransition` matching API matrix (`from === to` → true / allow no-op). Unit-test parity with API cases.
 
 ## Testing
 
 ### API
 
-- Backfill / `boardOrder` on create defaults.
-- Reorder happy path + reject foreign cell ids + ownership.
-- Bulk-status mixed legal/illegal → correct `moved` / `skipped`; activities only for moved.
+- Create appends `boardOrder` in cell (no colliding defaults).
+- Backfill migration + `boardOrder` indexes.
+- Reorder happy path; reject incomplete/extra/duplicate `orderedIds`; ownership/missing → `400` for reorder.
+- Bulk-status mixed legal/illegal → correct `moved` / `skipped`; activities only for moved; priority preserved; sequential append order stable for same target cell.
 - Status PATCH appends `boardOrder` in target cell.
 - Priority change appends in new lane cell.
 - Phase 2 transition + CRUD regress green.
+- List `pageSize=100` accepted; `101` → validation error.
 
 ### FE / a11y
 
-- Manual checklist in README (keyboard move/reorder, live region, reduced motion).
-- Unit tests for `canTransition` matrix parity with API cases.
+- Manual checklist in README (keyboard move/reorder, live region, reduced motion, drag handle vs click).
+- Unit tests for `canTransition` matrix parity with API cases (incl. same-status no-op).
 - Light component tests only if low-cost; no heavy E2E required in Phase 3.
 
 ### Gate
@@ -178,7 +196,7 @@ Rules:
 
 ## Success criteria
 
-1. `/board` supports status drag, within-cell reorder, priority-lane move, multi bulk-status.
+1. `/board` supports status drag, within-cell reorder, single-card priority-lane move, multi bulk-status.
 2. Server enforces transitions + ownership; FE `canTransition` matches matrix.
 3. A11y/UX acceptance list above met.
 4. README + `docs/PROJECT_CONTEXT.md` updated for Phase 3.
@@ -186,22 +204,24 @@ Rules:
 
 ## Non-goals (Phase 3)
 
-Interviews, reminders/BullMQ/Redis app usage, dashboard analytics, file uploads, customizable columns, within-cell multi-card reorder, dedicated `GET /board` payload (unless plan discovers hard need), shared monorepo package for transitions.
+Interviews, reminders/BullMQ/Redis app usage, dashboard analytics, file uploads, customizable columns, within-cell multi-card reorder, multi-select lane moves, dedicated `GET /board` payload, shared monorepo package for transitions, optimistic concurrency / etags for reorder.
 
-## Spec self-review
+## Spec self-review (post-fix)
 
 | Check | Result |
 | --- | --- |
-| Placeholders | None intentional; pageSize max pinned as plan open with preference 100 |
-| Cross-lane vs transition | Priority change not transition-gated—explicit |
-| Bulk partial success | `200` + skipped array—explicit |
-| Reorder activities | None—explicit |
+| pageSize | Locked max **100** everywhere |
+| Reorder completeness | Exact full cell set required |
+| Create boardOrder | Append on create |
+| Bulk priority | Preserved; sequential processing |
+| Multi → lane | Unsupported |
+| Concurrent reorder | Last-write-wins explicit |
+| Reorder response | `{ ok: true }` |
+| Drag vs click | Drag handle locked |
 | A11y deferred? | No—gate items listed |
-| Conflicts with Phase 2 | Additive `boardOrder` + two POSTs; PATCH rules extended |
 
 ## Residual thin (OK for plan)
 
 - Exact Tailwind tokens / motion durations
-- Whether reorder response returns full cell applications or `{ ok: true }`
-- Shift-click range select
-- Toast component vs aria-live only
+- Toast component vs aria-live only (live region required either way)
+- Whether bulk `moved` returns full Application rows or ids only (prefer full rows as table states)
