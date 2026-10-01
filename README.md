@@ -132,12 +132,13 @@ Mutating routes require matching `Origin` and CSRF header/cookie double-submit.
 
 ```bash
 npm run test          # apps/api Vitest
+npm run test -w apps/web
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-Also `npm run test -w apps/web`. API tests need Postgres **and Redis** up (`docker compose up -d`). CI runs the same gate with Postgres + Redis service containers (see below).
+API tests need Postgres **and Redis** up (`docker compose up -d`). CI runs the same gate with Postgres + Redis service containers (see below).
 
 ## CI
 
@@ -145,7 +146,7 @@ GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): 
 
 ## Phase 1 non-goals
 
-Kanban, interviews, dashboard analytics, BullMQ workers, file uploads, email, AI, payments, shared packages, Turborepo, pnpm, Next.js, Redis-backed auth, session UI, `__Host-` cookies, multi-device session UI, email verification, password reset, git hooks (Husky).
+Kanban, interviews, dashboard analytics, file uploads, email, AI, payments, shared packages, Turborepo, pnpm, Next.js, Redis-backed auth, session UI, `__Host-` cookies, multi-device session UI, email verification, password reset, git hooks (Husky).
 
 ## Phase 2 — Applications core
 
@@ -160,7 +161,7 @@ docker compose up -d   # or docker-compose up -d
 cp .env.example apps/api/.env
 npm install
 npm run db:migrate
-npm run dev            # API :3000 + web :5173 (Vite proxies /api)
+npm run dev            # API :3000 + web :5173 + worker (Vite proxies /api)
 ```
 
 Web routes: `/applications`, `/applications/new`, `/applications/:id`. Dashboard links to recent applications (no fake stats).

@@ -28,7 +28,7 @@ Users track job applications through a pipeline (company, title, status, notes, 
 | Jobs      | Redis + BullMQ; separate worker process (`apps/api/src/worker.ts`) marks reminders DUE (Phase 6)                  |
 | Auth      | Argon2id; JWT access + opaque refresh in httpOnly cookies; CSRF double-submit; refresh families + reuse detection |
 | Web       | React, Vite, React Router, TanStack Query, Tailwind                                                               |
-| Test / CI | Vitest (API), GitHub Actions                                                                                      |
+| Test / CI | Vitest (API + web suites; CI runs both), GitHub Actions                                                           |
 | Dev       | `npm run dev` → concurrently API `:3000` + web `:5173` + reminder worker (Vite proxies `/api`)                    |
 
 **Not used:** Next.js, Turborepo, pnpm, shared packages (YAGNI).
