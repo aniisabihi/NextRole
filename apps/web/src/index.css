@@ -9,9 +9,9 @@
   --color-ink-faint: #8b93a7;
   --color-paper: #f4f6fb;
   --color-surface: #ffffff;
-  --color-accent: #e8716a;
-  --color-accent-hover: #d65c55;
-  --color-accent-soft: #fde8e6;
+  --color-accent: #9b8fd4;
+  --color-accent-hover: #8577c4;
+  --color-accent-soft: #ede9fe;
   --color-border: #e2e6f0;
   --color-border-strong: #c8cedc;
 
@@ -36,7 +36,7 @@
   --color-priority-low-ink: #1e40af;
   --color-priority-medium: #fef3c7;
   --color-priority-medium-ink: #92400e;
-  --color-priority-high: #fde8e6;
+  --color-priority-high: #ffe4e6;
   --color-priority-high-ink: #9f1239;
 
   --radius-control: 0.75rem;
