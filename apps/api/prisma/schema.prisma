@@ -42,6 +42,25 @@ enum ActivityType {
   APPLICATION_CREATED
   STATUS_CHANGED
   FIELDS_UPDATED
+  INTERVIEW_CREATED
+  INTERVIEW_UPDATED
+  INTERVIEW_STATUS_CHANGED
+  INTERVIEW_DELETED
+}
+
+enum InterviewType {
+  PHONE
+  VIDEO
+  ONSITE
+  TECHNICAL
+  OTHER
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
 }
 
 model User {
@@ -101,6 +120,7 @@ model Application {
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   activities         Activity[]
+  interviews         Interview[]
 
   @@index([userId, status])
   @@index([userId, company])
@@ -110,13 +130,30 @@ model Application {
 }
 
 model Activity {
-  id            String        @id @default(cuid())
+  id            String       @id @default(cuid())
   applicationId String
-  application   Application   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  application   Application  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   userId        String
   type          ActivityType
   payload       Json
-  createdAt     DateTime      @default(now())
+  createdAt     DateTime     @default(now())
 
   @@index([applicationId, createdAt])
+}
+
+model Interview {
+  id            String          @id @default(cuid())
+  applicationId String
+  application   Application     @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  scheduledAt   DateTime
+  type          InterviewType
+  typeLabel     String?
+  status        InterviewStatus @default(SCHEDULED)
+  interviewer   String?
+  locationOrUrl String?
+  notes         String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([applicationId, scheduledAt])
 }
