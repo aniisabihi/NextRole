@@ -206,7 +206,24 @@ export async function updateApplication(
     return existing;
   }
 
+  const priorityChanging =
+    patch.priority !== undefined && patch.priority !== existing.priority;
+  const cellChanged = statusChanging || priorityChanging;
+  const finalStatus = statusChanging ? nextStatus! : existing.status;
+  const finalPriority = priorityChanging
+    ? (patch.priority as Priority)
+    : existing.priority;
+
   return prisma.$transaction(async (tx) => {
+    if (cellChanged) {
+      // Row still has old status/priority until update — not in target cell aggregate.
+      data.boardOrder = await nextBoardOrderInCell(
+        tx,
+        userId,
+        finalStatus,
+        finalPriority,
+      );
+    }
     const application = await tx.application.update({
       where: { id },
       data,
