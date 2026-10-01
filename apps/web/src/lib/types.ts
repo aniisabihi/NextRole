@@ -88,6 +88,10 @@ export const ACTIVITY_TYPES = [
   "APPLICATION_CREATED",
   "STATUS_CHANGED",
   "FIELDS_UPDATED",
+  "INTERVIEW_CREATED",
+  "INTERVIEW_UPDATED",
+  "INTERVIEW_STATUS_CHANGED",
+  "INTERVIEW_DELETED",
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -111,12 +115,91 @@ export type FieldsUpdatedPayload = {
   fields: Record<string, ActivityFieldDiff>;
 };
 
+export const INTERVIEW_TYPES = [
+  "PHONE",
+  "VIDEO",
+  "ONSITE",
+  "TECHNICAL",
+  "OTHER",
+] as const;
+export type InterviewType = (typeof INTERVIEW_TYPES)[number];
+
+export const INTERVIEW_STATUSES = [
+  "SCHEDULED",
+  "COMPLETED",
+  "CANCELLED",
+  "NO_SHOW",
+] as const;
+export type InterviewStatus = (typeof INTERVIEW_STATUSES)[number];
+
+export type Interview = {
+  id: string;
+  applicationId: string;
+  scheduledAt: string;
+  type: InterviewType;
+  typeLabel: string | null;
+  status: InterviewStatus;
+  interviewer: string | null;
+  locationOrUrl: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type InterviewListResponse = { items: Interview[] };
+export type InterviewResponse = { interview: Interview };
+
+export const INTERVIEW_TYPE_LABELS: Record<InterviewType, string> = {
+  PHONE: "Phone",
+  VIDEO: "Video",
+  ONSITE: "On-site",
+  TECHNICAL: "Technical",
+  OTHER: "Other",
+};
+
+export const INTERVIEW_STATUS_LABELS: Record<InterviewStatus, string> = {
+  SCHEDULED: "Scheduled",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  NO_SHOW: "No-show",
+};
+
+/** INTERVIEW_CREATED | INTERVIEW_DELETED: full row snapshot. */
+export type InterviewSnapshotPayload = {
+  interviewId: string;
+  interviewType: InterviewType;
+  typeLabel: string | null;
+  status: InterviewStatus;
+  scheduledAt: string;
+  interviewer: string | null;
+  locationOrUrl: string | null;
+  notes: string | null;
+};
+
+export type InterviewUpdatedPayload = {
+  interviewId: string;
+  fields: Record<string, ActivityFieldDiff>;
+};
+
+export type InterviewStatusChangedPayload = {
+  interviewId: string;
+  from: InterviewStatus;
+  to: InterviewStatus;
+};
+
 export type Activity = {
   id: string;
   applicationId: string;
   userId: string;
   type: ActivityType;
-  payload: ApplicationCreatedPayload | StatusChangedPayload | FieldsUpdatedPayload | Record<string, unknown>;
+  payload:
+    | ApplicationCreatedPayload
+    | StatusChangedPayload
+    | FieldsUpdatedPayload
+    | InterviewSnapshotPayload
+    | InterviewUpdatedPayload
+    | InterviewStatusChangedPayload
+    | Record<string, unknown>;
   createdAt: string;
 };
 
