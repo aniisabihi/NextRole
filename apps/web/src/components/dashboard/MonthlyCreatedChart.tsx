@@ -38,19 +38,21 @@ export function MonthlyCreatedChart({ monthlyCreated, isEmpty }: Props) {
           {monthlyCreated.map((m) => (
             <div
               key={m.month}
-              className="flex h-full flex-col items-center justify-end gap-1"
+              className="flex h-full min-h-0 flex-col items-center gap-1"
             >
-              <span className="text-xs font-medium tabular-nums text-ink-muted">
+              <span className="shrink-0 text-xs font-medium tabular-nums text-ink-muted">
                 {m.count}
               </span>
-              <div
-                className="w-full max-w-12 rounded-t-[var(--radius-control)] bg-accent"
-                style={{
-                  height: `${(m.count / max) * 100}%`,
-                  minHeight: m.count > 0 ? "4px" : "2px",
-                  opacity: m.count > 0 ? 1 : 0.35,
-                }}
-              />
+              <div className="flex min-h-0 w-full flex-1 items-end">
+                <div
+                  className="w-full max-w-12 rounded-t-[var(--radius-control)] bg-accent"
+                  style={{
+                    height: `${(m.count / max) * 100}%`,
+                    minHeight: m.count > 0 ? "4px" : "2px",
+                    opacity: m.count > 0 ? 1 : 0.35,
+                  }}
+                />
+              </div>
             </div>
           ))}
         </div>
