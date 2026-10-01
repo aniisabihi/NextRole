@@ -92,6 +92,8 @@ export const ACTIVITY_TYPES = [
   "INTERVIEW_UPDATED",
   "INTERVIEW_STATUS_CHANGED",
   "INTERVIEW_DELETED",
+  "REMINDER_FIRED",
+  "REMINDER_DISMISSED",
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
@@ -187,6 +189,50 @@ export type InterviewStatusChangedPayload = {
   to: InterviewStatus;
 };
 
+export const REMINDER_KINDS = ["MANUAL", "INTERVIEW", "FOLLOW_UP"] as const;
+export type ReminderKind = (typeof REMINDER_KINDS)[number];
+
+export const REMINDER_STATUSES = [
+  "SCHEDULED",
+  "DUE",
+  "DISMISSED",
+  "CANCELLED",
+] as const;
+export type ReminderStatus = (typeof REMINDER_STATUSES)[number];
+
+export type Reminder = {
+  id: string;
+  applicationId: string;
+  kind: ReminderKind;
+  interviewId: string | null;
+  title: string;
+  body: string | null;
+  dueAt: string;
+  status: ReminderStatus;
+  firedAt: string | null;
+  createdAt: string;
+  application?: { id: string; company: string; title: string };
+};
+
+export type ReminderListResponse = { items: Reminder[] };
+
+export type ReminderPrefs = {
+  interviewLeadHours: number;
+  followUpDays: number;
+};
+
+export const REMINDER_LEAD_HOURS_MIN = 1;
+export const REMINDER_LEAD_HOURS_MAX = 168;
+export const REMINDER_FOLLOW_UP_DAYS_MIN = 1;
+export const REMINDER_FOLLOW_UP_DAYS_MAX = 90;
+
+/** REMINDER_FIRED | REMINDER_DISMISSED */
+export type ReminderActivityPayload = {
+  reminderId: string;
+  kind: ReminderKind;
+  title: string;
+};
+
 export type Activity = {
   id: string;
   applicationId: string;
@@ -199,6 +245,7 @@ export type Activity = {
     | InterviewSnapshotPayload
     | InterviewUpdatedPayload
     | InterviewStatusChangedPayload
+    | ReminderActivityPayload
     | Record<string, unknown>;
   createdAt: string;
 };

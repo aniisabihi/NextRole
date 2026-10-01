@@ -20,16 +20,16 @@ Users track job applications through a pipeline (company, title, status, notes, 
 
 ## Tech stack (locked)
 
-| Layer        | Choice                                                                                                            |
-| ------------ | ----------------------------------------------------------------------------------------------------------------- |
-| Monorepo     | npm workspaces: `apps/api`, `apps/web`                                                                            |
-| API          | Node 22, Fastify, TypeScript strict, Zod, Prisma                                                                  |
-| DB           | PostgreSQL 16 (Docker)                                                                                            |
-| Jobs (later) | Redis + BullMQ (Redis in Compose now; **unused** until reminders phase)                                           |
-| Auth         | Argon2id; JWT access + opaque refresh in httpOnly cookies; CSRF double-submit; refresh families + reuse detection |
-| Web          | React, Vite, React Router, TanStack Query, Tailwind                                                               |
-| Test / CI    | Vitest (API), GitHub Actions                                                                                      |
-| Dev          | `npm run dev` → concurrently API `:3000` + web `:5173` (Vite proxies `/api`)                                      |
+| Layer     | Choice                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------- |
+| Monorepo  | npm workspaces: `apps/api`, `apps/web`                                                                            |
+| API       | Node 22, Fastify, TypeScript strict, Zod, Prisma                                                                  |
+| DB        | PostgreSQL 16 (Docker)                                                                                            |
+| Jobs      | Redis + BullMQ; separate worker process (`apps/api/src/worker.ts`) marks reminders DUE (Phase 6)                  |
+| Auth      | Argon2id; JWT access + opaque refresh in httpOnly cookies; CSRF double-submit; refresh families + reuse detection |
+| Web       | React, Vite, React Router, TanStack Query, Tailwind                                                               |
+| Test / CI | Vitest (API + web suites; CI runs both), GitHub Actions                                                           |
+| Dev       | `npm run dev` → concurrently API `:3000` + web `:5173` + reminder worker (Vite proxies `/api`)                    |
 
 **Not used:** Next.js, Turborepo, pnpm, shared packages (YAGNI).
 
@@ -57,16 +57,16 @@ Build **incrementally**. Do not implement everything in one phase.
 
 ## Roadmap / phases
 
-| Phase                             | Status                      | Deliverable                                                                                   |
-| --------------------------------- | --------------------------- | --------------------------------------------------------------------------------------------- |
-| **1 — Auth foundation**           | **Done** (on `main`)        | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
-| **2 — Applications core**         | **Done** (on `main`, PR #2) | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
-| **3 — Kanban**                    | **Done** (on `main`, PR #3) | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
-| **4 — Interviews**                | **Done** (on `main`, PR #4) | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
-| **UI — Soft Chromatic**           | **Done** (on `main`, PR #5) | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
-| **5 — Dashboard analytics**       | **Done** (on `main`, PR #6) | `GET /api/dashboard/stats`, Soft Chromatic stat tiles + CSS bar chart, real aggregates only   |
-| **6 — Reminders / BullMQ** (next) | Not started                 | Worker process + Redis usage                                                                  |
-| **Later**                         | —                           | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
+| Phase                       | Status                                              | Deliverable                                                                                   |
+| --------------------------- | --------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **1 — Auth foundation**     | **Done** (on `main`)                                | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
+| **2 — Applications core**   | **Done** (on `main`, PR #2)                         | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
+| **3 — Kanban**              | **Done** (on `main`, PR #3)                         | `/board` DnD, `boardOrder`, reorder + bulk-status APIs, a11y checklist                        |
+| **4 — Interviews**          | **Done** (on `main`, PR #4)                         | Interview CRUD nested under applications, one-way status, timeline, Upcoming/Past UI          |
+| **UI — Soft Chromatic**     | **Done** (on `main`, PR #5)                         | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces         |
+| **5 — Dashboard analytics** | **Done** (on `main`, PR #6)                         | `GET /api/dashboard/stats`, Soft Chromatic stat tiles + CSS bar chart, real aggregates only   |
+| **6 — Reminders / BullMQ**  | **Done on branch** `phase-6-reminders` (PR pending) | MANUAL/INTERVIEW/FOLLOW_UP reminders, BullMQ worker, bell UI, prefs                           |
+| **Later**                   | —                                                   | File uploads, `__Host-` cookies, session UI, email verify, etc.                               |
 
 Phase numbers 3–6 are the intended order; adjust only with an explicit design pass.
 
@@ -200,8 +200,8 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 ## Phases left (next up)
 
 1. ~~Dashboard analytics (Phase 5)~~ — done on `main` (PR #6)
-2. **Reminders + BullMQ worker (Phase 6, next)** — independent worker process; Redis required
-3. **Hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
+2. ~~Reminders + BullMQ worker (Phase 6)~~ — done on branch `phase-6-reminders`, PR pending
+3. **Later: hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
 
 ---
 
@@ -213,7 +213,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 **Tokens:** `apps/web/src/index.css` (`@theme`), `apps/web/src/lib/statusColors.ts`, `apps/web/src/lib/labels.ts`, `apps/web/src/components/ui/*`, `AppShell`.
 
-**Next session:** Phase 6 reminders / BullMQ design/plan.
+**Next session:** merge Phase 6 PR, then pick from Later.
 
 ---
 
@@ -225,7 +225,7 @@ cp .env.example apps/api/.env   # skip if apps/api/.env already set
 npm install
 npm exec -w apps/api -- prisma generate   # required after fresh install
 npm run db:migrate
-npm run dev            # API :3000 + web :5173 in parallel
+npm run dev            # API :3000 + web :5173 + reminder worker
 ```
 
 Do **not** run `npm audit fix --force` — it breaks prisma/`@prisma/client` pairing.
@@ -236,7 +236,7 @@ Details: root `README.md`.
 
 ## Agent / session tips
 
-- Next session: Phase 6 reminders / BullMQ design/plan. Do not re-implement Phases 2–5 or Soft Chromatic.
+- Next session: merge Phase 6 PR, then Later items. Do not re-implement Phases 2–6 or Soft Chromatic.
 - Prefer inspecting existing modules before inventing new patterns.
 - Spec > plan > improvisation; document intentional deviations in README.
 - Do not commit secrets (`.env`).

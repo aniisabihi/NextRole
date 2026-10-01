@@ -4,6 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",
+    "dev:worker": "tsx watch src/worker.ts",
+    "worker": "tsx src/worker.ts",
+    "start:worker": "node dist/worker.js",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "test": "vitest run",
@@ -23,8 +26,10 @@
     "@fastify/rate-limit": "^11.2.0",
     "@prisma/client": "^6.19.3",
     "argon2": "^0.45.1",
+    "bullmq": "^6.3.11",
     "dotenv": "^18.0.4",
     "fastify": "^5.12.5",
+    "ioredis": "^6.0.0",
     "jose": "^6.2.12",
     "zod": "^4.6.5"
   },

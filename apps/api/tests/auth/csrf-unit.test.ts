@@ -18,7 +18,10 @@ describe("assertCsrf", () => {
 
   it("throws CSRF_INVALID 403 when tokens differ", () => {
     try {
-      assertCsrf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+      assertCsrf(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      );
       expect.unreachable();
     } catch (err) {
       expect(err).toBeInstanceOf(AppError);

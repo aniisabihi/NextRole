@@ -7,6 +7,12 @@ import {
   valuesEqual,
 } from "../activities/field-diff.js";
 import { getApplication } from "../applications/applications.service.js";
+import {
+  cancelInterviewReminders,
+  flushReminderEffects,
+  newReminderEffects,
+  rescheduleInterviewReminder,
+} from "../reminders/reminder-hooks.js";
 import { assertInterviewTransition } from "./interview-status-transitions.js";
 import type { CreateInterviewBody, UpdateInterviewBody } from "./schemas.js";
 
@@ -68,10 +74,11 @@ export async function createInterview(
   applicationId: string,
   input: CreateInterviewBody,
 ): Promise<Interview> {
-  await getApplication(userId, applicationId);
+  const application = await getApplication(userId, applicationId);
   const typeLabel = resolveTypeLabel(input.type, input.typeLabel);
+  const effects = newReminderEffects();
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const count = await tx.interview.count({ where: { applicationId } });
     if (count >= INTERVIEW_CAP) {
       throw new AppError(
@@ -102,8 +109,16 @@ export async function createInterview(
       },
     });
 
+    await rescheduleInterviewReminder(
+      tx,
+      { userId, company: application.company, interview },
+      effects,
+    );
+
     return interview;
   });
+  await flushReminderEffects(effects);
+  return created;
 }
 
 function sameEpochMinute(a: Date, b: Date): boolean {
@@ -116,7 +131,7 @@ export async function updateInterview(
   id: string,
   patch: UpdateInterviewBody,
 ): Promise<Interview> {
-  await getApplication(userId, applicationId);
+  const application = await getApplication(userId, applicationId);
   const existing = await prisma.interview.findFirst({
     where: { id, applicationId },
   });
@@ -194,7 +209,8 @@ export async function updateInterview(
   }
   if (statusChanging) data.status = patch.status;
 
-  return prisma.$transaction(async (tx) => {
+  const effects = newReminderEffects();
+  const updated = await prisma.$transaction(async (tx) => {
     const interview = await tx.interview.update({ where: { id }, data });
 
     if (statusChanging) {
@@ -226,8 +242,21 @@ export async function updateInterview(
       });
     }
 
+    // Final interview row decides: left SCHEDULED -> cancel; rescheduled -> redo.
+    if (interview.status !== "SCHEDULED") {
+      await cancelInterviewReminders(tx, id, effects);
+    } else if (data.scheduledAt !== undefined) {
+      await rescheduleInterviewReminder(
+        tx,
+        { userId, company: application.company, interview },
+        effects,
+      );
+    }
+
     return interview;
   });
+  await flushReminderEffects(effects);
+  return updated;
 }
 
 export async function deleteInterview(
@@ -243,7 +272,10 @@ export async function deleteInterview(
     throw new AppError("NOT_FOUND", 404, "Interview not found");
   }
 
+  const effects = newReminderEffects();
   await prisma.$transaction(async (tx) => {
+    // Reminder.interviewId is SetNull on delete: cancel first so rows don't linger.
+    await cancelInterviewReminders(tx, id, effects);
     await tx.activity.create({
       data: {
         applicationId,
@@ -259,4 +291,5 @@ export async function deleteInterview(
       throw new AppError("NOT_FOUND", 404, "Interview not found");
     }
   });
+  await flushReminderEffects(effects);
 }

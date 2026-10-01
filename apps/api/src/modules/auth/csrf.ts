@@ -18,10 +18,7 @@ export function assertCsrf(
     throw new AppError("CSRF_INVALID", 403, "Invalid CSRF token");
   }
 
-  if (
-    cookieBuf.length === 0 ||
-    !timingSafeEqual(cookieBuf, headerBuf)
-  ) {
+  if (cookieBuf.length === 0 || !timingSafeEqual(cookieBuf, headerBuf)) {
     throw new AppError("CSRF_INVALID", 403, "Invalid CSRF token");
   }
 }

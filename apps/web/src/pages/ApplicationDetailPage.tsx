@@ -18,6 +18,11 @@ import {
   formatInterviewActivity,
   isInterviewActivity,
 } from "../lib/interview-activity";
+import { RemindersSection } from "../components/reminders/RemindersSection";
+import {
+  formatReminderActivity,
+  isReminderActivity,
+} from "../lib/reminder-activity";
 import {
   APPLICATION_STATUSES,
   EMPLOYMENT_TYPES,
@@ -240,6 +245,18 @@ function ActivityItem({ activity }: { activity: Activity }) {
     );
   }
 
+  if (isReminderActivity(activity)) {
+    // REMINDER_FIRED | REMINDER_DISMISSED
+    return (
+      <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
+        <p className="text-sm font-semibold text-ink">
+          {formatReminderActivity(activity)}
+        </p>
+        <p className="text-xs text-ink-faint">{when}</p>
+      </li>
+    );
+  }
+
   return (
     <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
       <p className="text-sm font-semibold text-ink">{activity.type}</p>
@@ -293,6 +310,7 @@ export function ApplicationDetailPage() {
           queryKey: ["application-activities", id],
         }),
         queryClient.invalidateQueries({ queryKey: ["applications"] }),
+        queryClient.invalidateQueries({ queryKey: ["reminders"] }),
       ]);
     },
     onError: (err) => {
@@ -585,6 +603,8 @@ export function ApplicationDetailPage() {
       </Surface>
 
       <InterviewsSection applicationId={id} />
+
+      <RemindersSection applicationId={id} />
 
       <Surface as="section" className="flex flex-col gap-4">
         <h2 className="font-display text-xl font-semibold text-ink">

@@ -3,14 +3,12 @@ import type { FastifyInstance } from "fastify";
 import { buildApp } from "../../src/app.js";
 import { prisma } from "../../src/db/prisma.js";
 import { resetDb } from "../helpers/db.js";
-import {
-  TEST_ORIGIN,
-  bootstrapCsrf,
-  cookieHeader,
-} from "../helpers/http.js";
+import { TEST_ORIGIN, bootstrapCsrf, cookieHeader } from "../helpers/http.js";
 import { registerAndLogin } from "../helpers/applications.js";
 
-function mutationHeaders(session: Awaited<ReturnType<typeof registerAndLogin>>) {
+function mutationHeaders(
+  session: Awaited<ReturnType<typeof registerAndLogin>>,
+) {
   return {
     Origin: TEST_ORIGIN,
     Cookie: session.cookieHeader,
@@ -150,7 +148,10 @@ describe("applications HTTP: CRUD", () => {
   });
 
   it("returns 401 for unauthenticated requests", async () => {
-    const getList = await app.inject({ method: "GET", url: "/api/applications" });
+    const getList = await app.inject({
+      method: "GET",
+      url: "/api/applications",
+    });
     expect(getList.statusCode).toBe(401);
 
     const csrf = await bootstrapCsrf(app);

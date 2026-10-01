@@ -1,7 +1,11 @@
 import type { ApplicationStatus } from "@prisma/client";
 import { AppError } from "../../shared/errors/app-error.js";
 
-export const TERMINAL = new Set<ApplicationStatus>(["OFFER", "REJECTED", "WITHDRAWN"]);
+export const TERMINAL = new Set<ApplicationStatus>([
+  "OFFER",
+  "REJECTED",
+  "WITHDRAWN",
+]);
 const WITHDRAWN_REOPEN = new Set<ApplicationStatus>(["SAVED", "APPLIED"]);
 
 export const PIPELINE = new Set<ApplicationStatus>([

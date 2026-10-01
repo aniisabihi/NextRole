@@ -5,6 +5,12 @@ import type {
   Priority,
   Prisma,
 } from "@prisma/client";
+import { safeRemoveJobs } from "../reminders/reminder-jobs.js";
+import {
+  flushReminderEffects,
+  newReminderEffects,
+  syncFollowUpOnStatusChange,
+} from "../reminders/reminder-hooks.js";
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import {
@@ -41,7 +47,8 @@ export async function createApplication(
   const priority = input.priority ?? "MEDIUM";
   const status = input.status ?? "SAVED";
 
-  return prisma.$transaction(async (tx) => {
+  const effects = newReminderEffects();
+  const created = await prisma.$transaction(async (tx) => {
     const boardOrder = await nextBoardOrderInCell(tx, userId, status, priority);
     const application = await tx.application.create({
       data: {
@@ -82,8 +89,17 @@ export async function createApplication(
       },
     });
 
+    // Initial APPLIED/SCREENING counts as entering the follow-up set.
+    await syncFollowUpOnStatusChange(
+      tx,
+      { application, previousStatus: null },
+      effects,
+    );
+
     return application;
   });
+  await flushReminderEffects(effects);
+  return created;
 }
 
 export async function getApplication(
@@ -124,8 +140,7 @@ export async function listApplications(
   if (query.workplaceType) where.workplaceType = query.workplaceType;
   if (query.priority) where.priority = query.priority;
 
-  const sortField =
-    query.sort === "priority" ? "priorityRank" : query.sort;
+  const sortField = query.sort === "priority" ? "priorityRank" : query.sort;
 
   const [total, items] = await Promise.all([
     prisma.application.count({ where }),
@@ -164,7 +179,10 @@ export async function updateApplication(
   let statusChanging = false;
 
   for (const [key, raw] of Object.entries(patch) as Array<
-    [keyof UpdateApplicationBody, UpdateApplicationBody[keyof UpdateApplicationBody]]
+    [
+      keyof UpdateApplicationBody,
+      UpdateApplicationBody[keyof UpdateApplicationBody],
+    ]
   >) {
     if (raw === undefined) continue;
 
@@ -205,7 +223,8 @@ export async function updateApplication(
     ? (patch.priority as Priority)
     : existing.priority;
 
-  return prisma.$transaction(async (tx) => {
+  const effects = newReminderEffects();
+  const updated = await prisma.$transaction(async (tx) => {
     if (cellChanged) {
       // Row still has old status/priority until update — not in target cell aggregate.
       data.boardOrder = await nextBoardOrderInCell(
@@ -229,6 +248,12 @@ export async function updateApplication(
           payload: { from: existing.status, to: nextStatus },
         },
       });
+      // Hook decides from the post-update row (`application.status`), not `existing`.
+      await syncFollowUpOnStatusChange(
+        tx,
+        { application, previousStatus: existing.status },
+        effects,
+      );
     }
 
     if (Object.keys(fieldDiff).length > 0) {
@@ -244,6 +269,8 @@ export async function updateApplication(
 
     return application;
   });
+  await flushReminderEffects(effects);
+  return updated;
 }
 
 export async function deleteApplication(
@@ -258,7 +285,13 @@ export async function deleteApplication(
     throw new AppError("NOT_FOUND", 404, "Application not found");
   }
 
+  // Collect pending jobs before the cascade wipes the rows; clean up post-commit.
+  const pending = await prisma.reminder.findMany({
+    where: { applicationId: id, status: "SCHEDULED", bullJobId: { not: null } },
+    select: { bullJobId: true },
+  });
   await prisma.application.delete({ where: { id } });
+  await safeRemoveJobs(pending.map((r) => r.bullJobId));
 }
 
 export async function reorderBoardCell(
@@ -348,6 +381,7 @@ export async function bulkUpdateStatus(
       }
       throw e;
     }
+    // Goes through updateApplication, so FOLLOW_UP status hooks fire per item.
     const updated = await updateApplication(userId, id, {
       status: input.toStatus,
       // inferred UpdateApplicationBody requires these keys; undefined = untouched

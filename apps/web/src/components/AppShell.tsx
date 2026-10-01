@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { AppNav } from "./AppNav";
+import { ReminderBell } from "./reminders/ReminderBell";
 
 export function AppShell({ children }: { children: ReactNode }) {
   return (
@@ -13,7 +14,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             NextRole
           </Link>
-          <AppNav />
+          <div className="flex items-center gap-2">
+            <AppNav />
+            <ReminderBell />
+          </div>
         </div>
       </header>
       <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8">

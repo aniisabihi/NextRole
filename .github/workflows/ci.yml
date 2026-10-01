@@ -18,9 +18,18 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://nextrole:nextrole@localhost:5432/nextrole
+      REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: ci-access-secret-at-least-32-chars-long
       REFRESH_TOKEN_PEPPER: ci-refresh-pepper-at-least-32-chars
       CORS_ORIGIN: http://localhost:5173
@@ -38,4 +47,5 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test -w apps/api
+      - run: npm run test -w apps/web
       - run: npm run build

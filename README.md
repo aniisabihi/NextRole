@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1–5 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI, [PR #6](https://github.com/aniisabihi/NextRole/pull/6) dashboard analytics). **Next:** reminders / BullMQ (Phase 6). See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1–5 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI, [PR #6](https://github.com/aniisabihi/NextRole/pull/6) dashboard analytics). **Phase 6 (reminders / BullMQ) done on branch `phase-6-reminders`, pending PR.** See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
@@ -12,12 +12,15 @@ flowchart LR
   Vite["Vite dev server\n/api proxy"]
   API["Fastify API :3000"]
   PG[(Postgres)]
-  Redis[(Redis\nreserved)]
+  Redis[(Redis\nBullMQ)]
+  Worker["Reminder worker\nsrc/worker.ts"]
 
   Browser --> Vite
   Vite -->|"same-origin /api"| API
   API --> PG
-  Redis -.->|"Phase 1 unused"| API
+  API -->|"enqueue delayed jobs"| Redis
+  Redis --> Worker
+  Worker -->|"mark reminders DUE"| PG
 ```
 
 ## Setup
@@ -37,6 +40,7 @@ npm run dev
 ```
 
 - API: `http://localhost:3000`
+- Worker: started by `npm run dev` (needs Redis on `REDIS_URL`)
 - Web: `http://localhost:5173` (proxies `/api` → API)
 
 ### Demo login
@@ -54,23 +58,24 @@ Avoid `npm audit fix --force` — it can break the prisma / `@prisma/client` ver
 
 ## Environment
 
-| Variable                    | Required | Default  | Notes                                        |
-| --------------------------- | -------- | -------- | -------------------------------------------- |
-| `NODE_ENV`                  | yes      | —        | `development` \| `test` \| `production`      |
-| `PORT`                      | no       | `3000`   | API listen port                              |
-| `DATABASE_URL`              | yes      | —        | Prisma Postgres URL                          |
-| `JWT_ACCESS_SECRET`         | yes      | —        | min 32 chars                                 |
-| `REFRESH_TOKEN_PEPPER`      | yes      | —        | min 32 chars; hashes refresh tokens at rest  |
-| `CORS_ORIGIN`               | yes      | —        | comma-separated origins; credentials enabled |
-| `COOKIE_SECURE`             | yes      | —        | `true` / `false`                             |
-| `ACCESS_TOKEN_TTL_SECONDS`  | no       | `900`    | access JWT / cookie maxAge                   |
-| `REFRESH_TOKEN_TTL_SECONDS` | no       | `604800` | refresh + CSRF cookie maxAge (7d)            |
-| `REFRESH_REUSE_GRACE_MS`    | no       | `10000`  | concurrent refresh grace window              |
-| `AUTH_RATE_LIMIT_MAX`       | no       | `20`     | register/login/refresh                       |
-| `AUTH_RATE_LIMIT_WINDOW_MS` | no       | `60000`  | rate-limit window                            |
-| `ARGON2_MEMORY_COST`        | no       | `65536`  | KiB                                          |
-| `ARGON2_TIME_COST`          | no       | `3`      | iterations                                   |
-| `ARGON2_PARALLELISM`        | no       | `1`      | threads                                      |
+| Variable                    | Required | Default                  | Notes                                                |
+| --------------------------- | -------- | ------------------------ | ---------------------------------------------------- |
+| `NODE_ENV`                  | yes      | —                        | `development` \| `test` \| `production`              |
+| `PORT`                      | no       | `3000`                   | API listen port                                      |
+| `DATABASE_URL`              | yes      | —                        | Prisma Postgres URL                                  |
+| `JWT_ACCESS_SECRET`         | yes      | —                        | min 32 chars                                         |
+| `REFRESH_TOKEN_PEPPER`      | yes      | —                        | min 32 chars; hashes refresh tokens at rest          |
+| `CORS_ORIGIN`               | yes      | —                        | comma-separated origins; credentials enabled         |
+| `COOKIE_SECURE`             | yes      | —                        | `true` / `false`                                     |
+| `ACCESS_TOKEN_TTL_SECONDS`  | no       | `900`                    | access JWT / cookie maxAge                           |
+| `REFRESH_TOKEN_TTL_SECONDS` | no       | `604800`                 | refresh + CSRF cookie maxAge (7d)                    |
+| `REFRESH_REUSE_GRACE_MS`    | no       | `10000`                  | concurrent refresh grace window                      |
+| `AUTH_RATE_LIMIT_MAX`       | no       | `20`                     | register/login/refresh                               |
+| `AUTH_RATE_LIMIT_WINDOW_MS` | no       | `60000`                  | rate-limit window                                    |
+| `ARGON2_MEMORY_COST`        | no       | `65536`                  | KiB                                                  |
+| `ARGON2_TIME_COST`          | no       | `3`                      | iterations                                           |
+| `ARGON2_PARALLELISM`        | no       | `1`                      | threads                                              |
+| `REDIS_URL`                 | no       | `redis://127.0.0.1:6379` | BullMQ (API enqueue + worker); required up for tests |
 
 Copy `.env.example` → `apps/api/.env` for local defaults (Prisma, Vitest setup, and `server.ts` all read that file; a root `.env` is only a fallback for the API process).
 
@@ -94,17 +99,20 @@ On refresh rotation, a just-revoked token may still mint a successor within `REF
 
 ## Scripts
 
-| Script                     | What                                                      |
-| -------------------------- | --------------------------------------------------------- |
-| `npm run dev`              | API (:3000) + web (:5173) in parallel via concurrently    |
-| `npm run build`            | Build all workspaces                                      |
-| `npm run test`             | API Vitest suite                                          |
-| `npm run test -w apps/web` | Web Vitest suite (e.g. `canTransition` parity)            |
-| `npm run lint`             | ESLint (api + web)                                        |
-| `npm run typecheck`        | `tsc` in workspaces                                       |
-| `npm run format`           | Prettier write                                            |
-| `npm run db:migrate`       | `prisma migrate deploy` (api)                             |
-| `npm run db:seed`          | Upsert demo user + apps (idempotent; skips if apps exist) |
+| Script                             | What                                                      |
+| ---------------------------------- | --------------------------------------------------------- |
+| `npm run dev`                      | API (:3000) + web (:5173) + worker via concurrently       |
+| `npm run dev:worker -w apps/api`   | Reminder worker only (`tsx watch`)                        |
+| `npm run worker -w apps/api`       | Reminder worker, no watch                                 |
+| `npm run start:worker -w apps/api` | Built worker (`node dist/worker.js`)                      |
+| `npm run build`                    | Build all workspaces                                      |
+| `npm run test`                     | API Vitest suite                                          |
+| `npm run test -w apps/web`         | Web Vitest suite (e.g. `canTransition` parity)            |
+| `npm run lint`                     | ESLint (api + web)                                        |
+| `npm run typecheck`                | `tsc` in workspaces                                       |
+| `npm run format`                   | Prettier write                                            |
+| `npm run db:migrate`               | `prisma migrate deploy` (api)                             |
+| `npm run db:seed`                  | Upsert demo user + apps (idempotent; skips if apps exist) |
 
 ## API (Phase 1)
 
@@ -124,20 +132,21 @@ Mutating routes require matching `Origin` and CSRF header/cookie double-submit.
 
 ```bash
 npm run test          # apps/api Vitest
+npm run test -w apps/web
 npm run typecheck
 npm run lint
 npm run build
 ```
 
-CI runs the same gate with a Postgres service container (see below). Frontend unit tests are out of Phase 1; manual smoke of login via Vite is enough.
+API tests need Postgres **and Redis** up (`docker compose up -d`). CI runs the same gate with Postgres + Redis service containers (see below).
 
 ## CI
 
-GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): `npm ci` → migrate → lint → typecheck → api tests → build. Env secrets for JWT/pepper are CI placeholders; Postgres is a job service.
+GitHub Actions workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml): `npm ci` → migrate → lint → typecheck → api tests → web tests → build. Env secrets for JWT/pepper are CI placeholders; Postgres and Redis are job services (`REDIS_URL=redis://localhost:6379`).
 
 ## Phase 1 non-goals
 
-Kanban, interviews, dashboard analytics, BullMQ workers, file uploads, email, AI, payments, shared packages, Turborepo, pnpm, Next.js, Redis-backed auth, session UI, `__Host-` cookies, multi-device session UI, email verification, password reset, git hooks (Husky).
+Kanban, interviews, dashboard analytics, file uploads, email, AI, payments, shared packages, Turborepo, pnpm, Next.js, Redis-backed auth, session UI, `__Host-` cookies, multi-device session UI, email verification, password reset, git hooks (Husky).
 
 ## Phase 2 — Applications core
 
@@ -152,7 +161,7 @@ docker compose up -d   # or docker-compose up -d
 cp .env.example apps/api/.env
 npm install
 npm run db:migrate
-npm run dev            # API :3000 + web :5173 (Vite proxies /api)
+npm run dev            # API :3000 + web :5173 + worker (Vite proxies /api)
 ```
 
 Web routes: `/applications`, `/applications/new`, `/applications/:id`. Dashboard links to recent applications (no fake stats).
@@ -383,3 +392,57 @@ No fake data. Account with no applications → zeros everywhere, no `NaN` rates 
 
 - Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase5-design.md`
 - Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase5.md`
+
+## Phase 6 — Reminders (BullMQ)
+
+In-app reminders. **Postgres `Reminder` rows are source of truth**; BullMQ delayed jobs on Redis mirror the schedule. A separate worker process (`apps/api/src/worker.ts`) flips due reminders `SCHEDULED` → `DUE`. No email/SMS/push.
+
+### Kinds
+
+| Kind        | Created                                                                          | Default                   |
+| ----------- | -------------------------------------------------------------------------------- | ------------------------- |
+| `MANUAL`    | by user on an application                                                        | any future `dueAt`        |
+| `INTERVIEW` | auto, lead time before `Interview.scheduledAt`                                   | `interviewLeadHours` = 24 |
+| `FOLLOW_UP` | auto, N days after entering `{APPLIED, SCREENING}`; `APPLIED→SCREENING` no reset | `followUpDays` = 7        |
+
+Statuses: `SCHEDULED`, `DUE`, `DISMISSED`, `CANCELLED`.
+
+### API (Phase 6)
+
+All routes require auth cookies; mutations need CSRF + Origin.
+
+| Method   | Path                                         | Success                                            |
+| -------- | -------------------------------------------- | -------------------------------------------------- |
+| `POST`   | `/api/applications/:applicationId/reminders` | `201` MANUAL reminder (`title`, `body?`, `dueAt`)  |
+| `GET`    | `/api/reminders`                             | list; `status` (csv), `applicationId`, `limit` ≤50 |
+| `PATCH`  | `/api/reminders/:id`                         | edit fields, or `{ status: "DISMISSED" }` alone    |
+| `DELETE` | `/api/reminders/:id`                         | `204`; soft `CANCELLED`, MANUAL only               |
+| `GET`    | `/api/me/reminder-prefs`                     | `{ interviewLeadHours, followUpDays }`             |
+| `PATCH`  | `/api/me/reminder-prefs`                     | saving reschedules open `SCHEDULED` auto reminders |
+
+### Worker
+
+- Job id `reminder-${id}-${dueAtMs}` (BullMQ forbids `:`), stored in `bullJobId`; remove-then-add on reschedule.
+- Fire uses CAS (`updateMany` where `status=SCHEDULED`); activity row written only when count = 1.
+- **Reconcile** on worker boot **and** sweep every ~60s: re-enqueues missing jobs; overdue `SCHEDULED` enqueue with delay 0. Redis `FLUSHDB` self-heals.
+- Enqueue failure is logged, never fails the HTTP request; sweep repairs.
+- Timeline logs fire and dismiss only.
+
+### Web
+
+Nav bell + dropdown (polls `GET /api/reminders` ~30–60s and on focus), Reminders section on application detail, prefs modal.
+
+### Manual smoke
+
+1. `docker compose up -d`; `npm run dev` (api + web + worker).
+2. MANUAL due in ~1 min → bell shows DUE without full reload.
+3. Interview +36h → INTERVIEW reminder; delete interview → gone from bell.
+4. Create app as `APPLIED` → FOLLOW_UP; move `APPLIED→SCREENING` → same reminder.
+5. Prefs `followUpDays` 1 → `dueAt` moves from `createdAt`.
+6. `FLUSHDB` while worker runs → jobs restored / overdue fired within ~60s.
+7. Bell: keyboard open/Esc/focus; prefs modal focus trap.
+
+### Spec / plan
+
+- Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase6-design.md`
+- Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase6.md`

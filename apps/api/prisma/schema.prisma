@@ -46,6 +46,21 @@ enum ActivityType {
   INTERVIEW_UPDATED
   INTERVIEW_STATUS_CHANGED
   INTERVIEW_DELETED
+  REMINDER_FIRED
+  REMINDER_DISMISSED
+}
+
+enum ReminderKind {
+  MANUAL
+  INTERVIEW
+  FOLLOW_UP
+}
+
+enum ReminderStatus {
+  SCHEDULED
+  DUE
+  DISMISSED
+  CANCELLED
 }
 
 enum InterviewType {
@@ -64,14 +79,17 @@ enum InterviewStatus {
 }
 
 model User {
-  id           String         @id @default(cuid())
-  email        String         @unique
-  passwordHash String
-  name         String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  sessions     RefreshToken[]
-  applications Application[]
+  id                 String         @id @default(cuid())
+  email              String         @unique
+  passwordHash       String
+  name               String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  interviewLeadHours Int            @default(24)
+  followUpDays       Int            @default(7)
+  sessions           RefreshToken[]
+  applications       Application[]
+  reminders          Reminder[]
 }
 
 model RefreshToken {
@@ -121,6 +139,7 @@ model Application {
   updatedAt          DateTime          @updatedAt
   activities         Activity[]
   interviews         Interview[]
+  reminders          Reminder[]
 
   @@index([userId, status])
   @@index([userId, company])
@@ -154,6 +173,31 @@ model Interview {
   notes         String?
   createdAt     DateTime        @default(now())
   updatedAt     DateTime        @updatedAt
+  reminders     Reminder[]
 
   @@index([applicationId, scheduledAt])
+}
+
+model Reminder {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applicationId String
+  application   Application    @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  kind          ReminderKind
+  interviewId   String?
+  interview     Interview?     @relation(fields: [interviewId], references: [id], onDelete: SetNull)
+  title         String
+  body          String?
+  dueAt         DateTime
+  status        ReminderStatus @default(SCHEDULED)
+  bullJobId     String?
+  firedAt       DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@index([userId, status, dueAt])
+  @@index([status, dueAt])
+  @@index([applicationId])
+  @@index([interviewId])
 }

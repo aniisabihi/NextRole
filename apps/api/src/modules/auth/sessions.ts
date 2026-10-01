@@ -3,10 +3,7 @@ import type { Prisma } from "@prisma/client";
 import { loadEnv } from "../../config/env.js";
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
-import {
-  generateRefreshTokenRaw,
-  hashRefreshToken,
-} from "./tokens.js";
+import { generateRefreshTokenRaw, hashRefreshToken } from "./tokens.js";
 
 type Tx = Prisma.TransactionClient;
 
@@ -70,7 +67,11 @@ async function selectByIdForUpdate(
   return row ? mapRow(row) : null;
 }
 
-async function revokeFamily(tx: Tx, familyId: string, now: Date): Promise<void> {
+async function revokeFamily(
+  tx: Tx,
+  familyId: string,
+  now: Date,
+): Promise<void> {
   await tx.refreshToken.updateMany({
     where: { familyId, revokedAt: null },
     data: { revokedAt: now },
@@ -121,9 +122,7 @@ async function walkToTip(tx: Tx, startId: string): Promise<RefreshTokenRow> {
   return current;
 }
 
-export async function createSession(
-  userId: string,
-): Promise<{ raw: string }> {
+export async function createSession(userId: string): Promise<{ raw: string }> {
   const env = loadEnv();
   const now = new Date();
   const raw = generateRefreshTokenRaw();

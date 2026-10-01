@@ -19,15 +19,11 @@ const httpHttpsUrl = z
   .string()
   .max(2000)
   .url()
-  .refine(
-    (url) => url.startsWith("http://") || url.startsWith("https://"),
-    { message: "URL must start with http:// or https://" },
-  );
+  .refine((url) => url.startsWith("http://") || url.startsWith("https://"), {
+    message: "URL must start with http:// or https://",
+  });
 
-const optionalJobUrl = z.preprocess(
-  emptyToUndefined,
-  httpHttpsUrl.optional(),
-);
+const optionalJobUrl = z.preprocess(emptyToUndefined, httpHttpsUrl.optional());
 
 const optionalEmail = z.preprocess(
   emptyToUndefined,
@@ -91,7 +87,9 @@ export const updateApplicationSchema = z
     company: trimmedMax(200).min(1).optional(),
     title: trimmedMax(200).min(1).optional(),
     location: sharedApplicationFields.location.nullable().optional(),
-    employmentType: sharedApplicationFields.employmentType.nullable().optional(),
+    employmentType: sharedApplicationFields.employmentType
+      .nullable()
+      .optional(),
     workplaceType: sharedApplicationFields.workplaceType.nullable().optional(),
     salary: sharedApplicationFields.salary.nullable().optional(),
     jobUrl: z.preprocess(emptyToUndefined, httpHttpsUrl.nullable().optional()),

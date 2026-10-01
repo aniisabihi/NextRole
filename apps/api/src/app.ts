@@ -10,6 +10,11 @@ import { applicationsRoutes } from "./modules/applications/routes.js";
 import { interviewsRoutes } from "./modules/interviews/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
+import {
+  applicationRemindersRoutes,
+  remindersRoutes,
+} from "./modules/reminders/routes.js";
+import { closeReminderQueue } from "./jobs/queue.js";
 import { dashboardRoutes } from "./modules/dashboard/routes.js";
 
 export async function buildApp() {
@@ -40,7 +45,15 @@ export async function buildApp() {
   await app.register(interviewsRoutes, {
     prefix: "/api/applications/:applicationId/interviews",
   });
+  await app.register(applicationRemindersRoutes, {
+    prefix: "/api/applications/:applicationId/reminders",
+  });
+  await app.register(remindersRoutes, { prefix: "/api/reminders" });
   await app.register(dashboardRoutes, { prefix: "/api/dashboard" });
+
+  app.addHook("onClose", async () => {
+    await closeReminderQueue();
+  });
 
   return app;
 }

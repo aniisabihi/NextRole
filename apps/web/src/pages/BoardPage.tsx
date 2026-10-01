@@ -176,6 +176,7 @@ export function BoardPage() {
   const refresh = useCallback(
     async (movedId: string) => {
       await queryClient.invalidateQueries({ queryKey: BOARD_KEY });
+      await queryClient.invalidateQueries({ queryKey: ["reminders"] });
       setFocusId(movedId);
     },
     [queryClient],
