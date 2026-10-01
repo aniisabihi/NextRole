@@ -1,7 +1,17 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
-import { AppNav } from "../components/AppNav";
+import { AppShell } from "../components/AppShell";
+import { Button, ButtonLink } from "../components/ui/Button";
+import { PageHeader } from "../components/ui/PageHeader";
+import { Surface } from "../components/ui/Surface";
+import {
+  employmentTypeLabel,
+  enumLabel,
+  priorityLabel,
+  statusLabel,
+  workplaceTypeLabel,
+} from "../lib/labels";
 import { InterviewsSection } from "../components/interviews/InterviewsSection";
 import { apiClient } from "../lib/apiClient";
 import {
@@ -39,7 +49,7 @@ function formatWhen(iso: string): string {
 
 function formatDiffValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
-  if (typeof value === "string") return value;
+  if (typeof value === "string") return enumLabel(value);
   return JSON.stringify(value);
 }
 
@@ -96,10 +106,14 @@ function enumOrNull(value: string): string | null {
   return value ? value : null;
 }
 
-function buildPatch(form: FormState, original: Application): Record<string, unknown> {
+function buildPatch(
+  form: FormState,
+  original: Application,
+): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
 
-  if (form.company.trim() !== original.company) patch.company = form.company.trim();
+  if (form.company.trim() !== original.company)
+    patch.company = form.company.trim();
   if (form.title.trim() !== original.title) patch.title = form.title.trim();
 
   const location = optionalOrNull(form.location);
@@ -138,16 +152,20 @@ function buildPatch(form: FormState, original: Application): Record<string, unkn
   if (notes !== (original.notes ?? null)) patch.notes = notes;
 
   const contactName = optionalOrNull(form.contactName);
-  if (contactName !== (original.contactName ?? null)) patch.contactName = contactName;
+  if (contactName !== (original.contactName ?? null))
+    patch.contactName = contactName;
 
   const contactEmail = optionalOrNull(form.contactEmail);
-  if (contactEmail !== (original.contactEmail ?? null)) patch.contactEmail = contactEmail;
+  if (contactEmail !== (original.contactEmail ?? null))
+    patch.contactEmail = contactEmail;
 
   const contactPhone = optionalOrNull(form.contactPhone);
-  if (contactPhone !== (original.contactPhone ?? null)) patch.contactPhone = contactPhone;
+  if (contactPhone !== (original.contactPhone ?? null))
+    patch.contactPhone = contactPhone;
 
   const contactRole = optionalOrNull(form.contactRole);
-  if (contactRole !== (original.contactRole ?? null)) patch.contactRole = contactRole;
+  if (contactRole !== (original.contactRole ?? null))
+    patch.contactRole = contactRole;
 
   const resumeVersion = optionalOrNull(form.resumeVersion);
   if (resumeVersion !== (original.resumeVersion ?? null)) {
@@ -168,12 +186,12 @@ function ActivityItem({ activity }: { activity: Activity }) {
   if (activity.type === "APPLICATION_CREATED") {
     const p = activity.payload as ApplicationCreatedPayload;
     return (
-      <li className="border-l-2 border-neutral-300 pl-3">
-        <p className="text-sm font-medium">Created</p>
-        <p className="text-sm text-neutral-700">
-          {p.company} — {p.title} ({p.status})
+      <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
+        <p className="text-sm font-semibold text-ink">Created</p>
+        <p className="text-sm text-ink-muted">
+          {p.company} — {p.title} ({enumLabel(p.status)})
         </p>
-        <p className="text-xs text-neutral-500">{when}</p>
+        <p className="text-xs text-ink-faint">{when}</p>
       </li>
     );
   }
@@ -181,12 +199,12 @@ function ActivityItem({ activity }: { activity: Activity }) {
   if (activity.type === "STATUS_CHANGED") {
     const p = activity.payload as StatusChangedPayload;
     return (
-      <li className="border-l-2 border-neutral-300 pl-3">
-        <p className="text-sm font-medium">Status changed</p>
-        <p className="text-sm text-neutral-700">
-          {p.from} → {p.to}
+      <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
+        <p className="text-sm font-semibold text-ink">Status changed</p>
+        <p className="text-sm text-ink-muted">
+          {enumLabel(p.from)} → {enumLabel(p.to)}
         </p>
-        <p className="text-xs text-neutral-500">{when}</p>
+        <p className="text-xs text-ink-faint">{when}</p>
       </li>
     );
   }
@@ -195,9 +213,9 @@ function ActivityItem({ activity }: { activity: Activity }) {
     const p = activity.payload as FieldsUpdatedPayload;
     const entries = Object.entries(p.fields ?? {});
     return (
-      <li className="border-l-2 border-neutral-300 pl-3">
-        <p className="text-sm font-medium">Fields updated</p>
-        <ul className="mt-1 space-y-1 text-sm text-neutral-700">
+      <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
+        <p className="text-sm font-semibold text-ink">Fields updated</p>
+        <ul className="mt-1 space-y-1 text-sm text-ink-muted">
           {entries.map(([field, diff]) => (
             <li key={field}>
               <span className="font-medium">{field}</span>:{" "}
@@ -205,7 +223,7 @@ function ActivityItem({ activity }: { activity: Activity }) {
             </li>
           ))}
         </ul>
-        <p className="text-xs text-neutral-500">{when}</p>
+        <p className="text-xs text-ink-faint">{when}</p>
       </li>
     );
   }
@@ -213,19 +231,19 @@ function ActivityItem({ activity }: { activity: Activity }) {
   if (isInterviewActivity(activity)) {
     // INTERVIEW_CREATED | INTERVIEW_UPDATED | INTERVIEW_STATUS_CHANGED | INTERVIEW_DELETED
     return (
-      <li className="border-l-2 border-neutral-300 pl-3">
-        <p className="text-sm font-medium">
+      <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
+        <p className="text-sm font-semibold text-ink">
           {formatInterviewActivity(activity)}
         </p>
-        <p className="text-xs text-neutral-500">{when}</p>
+        <p className="text-xs text-ink-faint">{when}</p>
       </li>
     );
   }
 
   return (
-    <li className="border-l-2 border-neutral-300 pl-3">
-      <p className="text-sm font-medium">{activity.type}</p>
-      <p className="text-xs text-neutral-500">{when}</p>
+    <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
+      <p className="text-sm font-semibold text-ink">{activity.type}</p>
+      <p className="text-xs text-ink-faint">{when}</p>
     </li>
   );
 }
@@ -243,8 +261,7 @@ export function ApplicationDetailPage() {
   const appQuery = useQuery({
     queryKey: ["application", id],
     enabled: Boolean(id),
-    queryFn: () =>
-      apiClient<ApplicationResponse>(`/api/applications/${id!}`),
+    queryFn: () => apiClient<ApplicationResponse>(`/api/applications/${id!}`),
   });
 
   const activitiesQuery = useQuery({
@@ -301,118 +318,123 @@ export function ApplicationDetailPage() {
 
   if (!id) {
     return (
-      <main className="mx-auto max-w-2xl p-6">
-        <p className="text-sm text-red-600">Missing application id.</p>
-      </main>
+      <AppShell>
+        <p className="text-sm text-status-rejected-ink">
+          Missing application id.
+        </p>
+      </AppShell>
     );
   }
 
   if (appQuery.isError) {
     return (
-      <main className="mx-auto max-w-2xl p-6">
-        <AppNav />
-        <p className="text-sm text-red-600">
+      <AppShell>
+        <p className="text-sm text-status-rejected-ink">
           {appQuery.error instanceof Error
             ? appQuery.error.message
             : "Could not load application."}
         </p>
         <p className="mt-2 text-sm">
-          <Link className="underline" to="/applications">
+          <Link
+            className="font-medium text-accent-hover underline-offset-2 hover:underline"
+            to="/applications"
+          >
             Back to list
           </Link>
         </p>
-      </main>
+      </AppShell>
     );
   }
 
   if (appQuery.isLoading || !form) {
     return (
-      <main className="mx-auto max-w-2xl p-6">
-        <AppNav />
-        <p className="text-sm text-neutral-600">Loading…</p>
-      </main>
+      <AppShell>
+        <p className="text-sm text-ink-muted">Loading…</p>
+      </AppShell>
     );
   }
 
   const activities = activitiesQuery.data?.items ?? [];
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <AppNav />
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Edit application</h1>
-        <Link className="text-sm underline" to="/applications">
-          Back to list
-        </Link>
-      </div>
+    <AppShell>
+      <PageHeader
+        title="Edit application"
+        description={`${form.company} — ${form.title}`}
+        actions={
+          <ButtonLink variant="ghost" to="/applications">
+            Back to list
+          </ButtonLink>
+        }
+      />
 
-      <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-        <label className="flex flex-col gap-1 text-sm">
+      <Surface as="form" className="flex flex-col gap-5" onSubmit={onSubmit}>
+        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
           Company
           <input
-            className="rounded border border-neutral-300 px-3 py-2"
+            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
             required
             maxLength={200}
             value={form.company}
             onChange={(e) => setField("company", e.target.value)}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
           Title
           <input
-            className="rounded border border-neutral-300 px-3 py-2"
+            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
             required
             maxLength={200}
             value={form.title}
             onChange={(e) => setField("title", e.target.value)}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
           Location
           <input
-            className="rounded border border-neutral-300 px-3 py-2"
+            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
             maxLength={200}
             value={form.location}
             onChange={(e) => setField("location", e.target.value)}
           />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Employment type
             <select
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
               value={form.employmentType}
               onChange={(e) => setField("employmentType", e.target.value)}
             >
               <option value="">—</option>
               {EMPLOYMENT_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {employmentTypeLabel(t)}
                 </option>
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Workplace type
             <select
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
               value={form.workplaceType}
               onChange={(e) => setField("workplaceType", e.target.value)}
             >
               <option value="">—</option>
               {WORKPLACE_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {workplaceTypeLabel(t)}
                 </option>
               ))}
             </select>
           </label>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Status
             <select
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
               value={form.status}
               onChange={(e) =>
                 setField("status", e.target.value as ApplicationStatus)
@@ -420,41 +442,39 @@ export function ApplicationDetailPage() {
             >
               {APPLICATION_STATUSES.map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {statusLabel(s)}
                 </option>
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Priority
             <select
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
               value={form.priority}
-              onChange={(e) =>
-                setField("priority", e.target.value as Priority)
-              }
+              onChange={(e) => setField("priority", e.target.value as Priority)}
             >
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {priorityLabel(p)}
                 </option>
               ))}
             </select>
           </label>
         </div>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
           Salary
           <input
-            className="rounded border border-neutral-300 px-3 py-2"
+            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
             maxLength={100}
             value={form.salary}
             onChange={(e) => setField("salary", e.target.value)}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
           Job URL
           <input
-            className="rounded border border-neutral-300 px-3 py-2"
+            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
             type="url"
             maxLength={2000}
             placeholder="https://"
@@ -463,29 +483,29 @@ export function ApplicationDetailPage() {
           />
         </label>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Date discovered
             <input
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               type="date"
               value={form.dateDiscovered}
               onChange={(e) => setField("dateDiscovered", e.target.value)}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Date applied
             <input
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               type="date"
               value={form.dateApplied}
               onChange={(e) => setField("dateApplied", e.target.value)}
             />
           </label>
         </div>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
           Notes
           <textarea
-            className="rounded border border-neutral-300 px-3 py-2"
+            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
             rows={4}
             maxLength={10000}
             value={form.notes}
@@ -493,39 +513,41 @@ export function ApplicationDetailPage() {
           />
         </label>
         <fieldset className="grid gap-4 sm:grid-cols-2">
-          <legend className="mb-1 text-sm font-medium">Contact</legend>
-          <label className="flex flex-col gap-1 text-sm">
+          <legend className="mb-2 font-display text-base font-semibold text-ink">
+            Contact
+          </legend>
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Name
             <input
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               maxLength={200}
               value={form.contactName}
               onChange={(e) => setField("contactName", e.target.value)}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Role
             <input
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               maxLength={200}
               value={form.contactRole}
               onChange={(e) => setField("contactRole", e.target.value)}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Email
             <input
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               type="email"
               maxLength={255}
               value={form.contactEmail}
               onChange={(e) => setField("contactEmail", e.target.value)}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Phone
             <input
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               maxLength={50}
               value={form.contactPhone}
               onChange={(e) => setField("contactPhone", e.target.value)}
@@ -533,45 +555,49 @@ export function ApplicationDetailPage() {
           </label>
         </fieldset>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Resume version
             <input
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               maxLength={200}
               value={form.resumeVersion}
               onChange={(e) => setField("resumeVersion", e.target.value)}
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
             Cover letter version
             <input
-              className="rounded border border-neutral-300 px-3 py-2"
+              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
               maxLength={200}
               value={form.coverLetterVersion}
               onChange={(e) => setField("coverLetterVersion", e.target.value)}
             />
           </label>
         </div>
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
-        <button
-          className="rounded bg-neutral-900 px-3 py-2 text-white disabled:opacity-50"
-          type="submit"
-          disabled={saveMutation.isPending}
-        >
+        {error ? (
+          <p className="text-sm text-status-rejected-ink" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <Button type="submit" disabled={saveMutation.isPending}>
           {saveMutation.isPending ? "Saving…" : "Save"}
-        </button>
-      </form>
+        </Button>
+      </Surface>
 
       <InterviewsSection applicationId={id} />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Timeline</h2>
+      <Surface as="section" className="flex flex-col gap-4">
+        <h2 className="font-display text-xl font-semibold text-ink">
+          Timeline
+        </h2>
         {activitiesQuery.isLoading ? (
-          <p className="text-sm text-neutral-600">Loading activities…</p>
+          <p className="text-sm text-ink-muted">Loading activities…</p>
         ) : activitiesQuery.isError ? (
-          <p className="text-sm text-red-600">Could not load activities.</p>
+          <p className="text-sm text-status-rejected-ink">
+            Could not load activities.
+          </p>
         ) : activities.length === 0 ? (
-          <p className="text-sm text-neutral-600">No activities yet.</p>
+          <p className="text-sm text-ink-muted">No activities yet.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {activities.map((a) => (
@@ -579,7 +605,7 @@ export function ApplicationDetailPage() {
             ))}
           </ul>
         )}
-      </section>
-    </main>
+      </Surface>
+    </AppShell>
   );
 }

@@ -1,14 +1,129 @@
 @import "tailwindcss";
 
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family:
-    system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    sans-serif;
-  background: #fafafa;
-  color: #171717;
+@theme {
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink: #1a1f2e;
+  --color-ink-muted: #5b6478;
+  --color-ink-faint: #8b93a7;
+  --color-paper: #f4f6fb;
+  --color-surface: #ffffff;
+  --color-accent: #9b8fd4;
+  --color-accent-hover: #8577c4;
+  --color-accent-soft: #ede9fe;
+  --color-border: #e2e6f0;
+  --color-border-strong: #c8cedc;
+
+  --color-status-saved: #dbeafe;
+  --color-status-saved-ink: #1e40af;
+  --color-status-applied: #ede9fe;
+  --color-status-applied-ink: #5b21b6;
+  --color-status-screening: #d1fae5;
+  --color-status-screening-ink: #065f46;
+  --color-status-interview: #ffedd5;
+  --color-status-interview-ink: #9a3412;
+  --color-status-technical: #fef9c3;
+  --color-status-technical-ink: #854d0e;
+  --color-status-offer: #ccfbf1;
+  --color-status-offer-ink: #115e59;
+  --color-status-rejected: #fce7f3;
+  --color-status-rejected-ink: #9d174d;
+  --color-status-withdrawn: #e2e8f0;
+  --color-status-withdrawn-ink: #334155;
+
+  --color-priority-low: #dbeafe;
+  --color-priority-low-ink: #1e40af;
+  --color-priority-medium: #fef3c7;
+  --color-priority-medium-ink: #92400e;
+  --color-priority-high: #ffe4e6;
+  --color-priority-high-ink: #9f1239;
+
+  --radius-control: 0.75rem;
+  --radius-panel: 1rem;
+}
+
+@layer base {
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    color: var(--color-ink);
+    background-color: var(--color-paper);
+    background-image:
+      radial-gradient(
+        ellipse 80% 50% at 10% -10%,
+        rgba(167, 243, 208, 0.35),
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse 70% 45% at 95% 5%,
+        rgba(221, 214, 254, 0.4),
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 50% 100%,
+        rgba(254, 215, 170, 0.25),
+        transparent 45%
+      );
+    background-attachment: fixed;
+  }
+
+  #root {
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  select {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6478' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .auth-fade-in {
+    animation: auth-fade-in 0.45s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-fade-in {
+      animation: none;
+    }
+  }
+
+  @keyframes auth-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }

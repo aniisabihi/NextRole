@@ -1,8 +1,21 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { AppNav } from "../components/AppNav";
+import { AppShell } from "../components/AppShell";
+import { Button, ButtonLink } from "../components/ui/Button";
+import { Field, TextInput, TextSelect } from "../components/ui/Field";
+import { PageHeader } from "../components/ui/PageHeader";
+import { PriorityChip, StatusChip } from "../components/ui/StatusChip";
+import { Surface } from "../components/ui/Surface";
 import { apiClient } from "../lib/apiClient";
+import { STATUS_EDGE } from "../lib/statusColors";
+import {
+  employmentTypeLabel,
+  sortFieldLabel,
+  statusLabel,
+  workplaceTypeLabel,
+  priorityLabel,
+} from "../lib/labels";
 import {
   APPLICATION_SORT_FIELDS,
   APPLICATION_STATUSES,
@@ -78,93 +91,78 @@ export function ApplicationsPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-4 p-6">
-      <AppNav />
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Applications</h1>
-        <Link
-          className="rounded bg-neutral-900 px-3 py-2 text-sm text-white"
-          to="/applications/new"
-        >
-          New application
-        </Link>
-      </div>
+    <AppShell>
+      <PageHeader
+        title="Applications"
+        description="Filter, sort, and open any role in your pipeline."
+        actions={
+          <ButtonLink to="/applications/new">New application</ButtonLink>
+        }
+      />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-sm sm:col-span-2">
-          Search
-          <input
-            className="rounded border border-neutral-300 px-3 py-2"
+      <Surface className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <Field label="Search" className="sm:col-span-2 lg:col-span-3">
+          <TextInput
             type="search"
             placeholder="Company or title"
             value={q}
             onChange={(e) => onFilterChange(setQ, e.target.value)}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Status
-          <select
-            className="rounded border border-neutral-300 px-3 py-2"
+        </Field>
+        <Field label="Status">
+          <TextSelect
             value={status}
             onChange={(e) => onFilterChange(setStatus, e.target.value)}
           >
             <option value="">Any</option>
             {APPLICATION_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {statusLabel(s)}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Employment
-          <select
-            className="rounded border border-neutral-300 px-3 py-2"
+          </TextSelect>
+        </Field>
+        <Field label="Employment">
+          <TextSelect
             value={employmentType}
             onChange={(e) => onFilterChange(setEmploymentType, e.target.value)}
           >
             <option value="">Any</option>
             {EMPLOYMENT_TYPES.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {employmentTypeLabel(t)}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Workplace
-          <select
-            className="rounded border border-neutral-300 px-3 py-2"
+          </TextSelect>
+        </Field>
+        <Field label="Workplace">
+          <TextSelect
             value={workplaceType}
             onChange={(e) => onFilterChange(setWorkplaceType, e.target.value)}
           >
             <option value="">Any</option>
             {WORKPLACE_TYPES.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {workplaceTypeLabel(t)}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Priority
-          <select
-            className="rounded border border-neutral-300 px-3 py-2"
+          </TextSelect>
+        </Field>
+        <Field label="Priority">
+          <TextSelect
             value={priority}
             onChange={(e) => onFilterChange(setPriority, e.target.value)}
           >
             <option value="">Any</option>
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>
-                {p}
+                {priorityLabel(p)}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Sort
-          <select
-            className="rounded border border-neutral-300 px-3 py-2"
+          </TextSelect>
+        </Field>
+        <Field label="Sort">
+          <TextSelect
             value={sort}
             onChange={(e) =>
               onFilterChange(setSort, e.target.value as ApplicationSortField)
@@ -172,29 +170,27 @@ export function ApplicationsPage() {
           >
             {APPLICATION_SORT_FIELDS.map((f) => (
               <option key={f} value={f}>
-                {f}
+                {sortFieldLabel(f)}
               </option>
             ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Order
-          <select
-            className="rounded border border-neutral-300 px-3 py-2"
+          </TextSelect>
+        </Field>
+        <Field label="Order">
+          <TextSelect
             value={order}
             onChange={(e) =>
               onFilterChange(setOrder, e.target.value as "asc" | "desc")
             }
           >
-            <option value="desc">desc</option>
-            <option value="asc">asc</option>
-          </select>
-        </label>
-      </div>
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </TextSelect>
+        </Field>
+      </Surface>
 
-      {list.isPending ? <p>Loading…</p> : null}
+      {list.isPending ? <p className="text-ink-muted">Loading…</p> : null}
       {list.isError ? (
-        <p className="text-red-600">
+        <p className="text-status-rejected-ink">
           {list.error instanceof Error
             ? list.error.message
             : "Could not load applications."}
@@ -203,53 +199,70 @@ export function ApplicationsPage() {
 
       {list.data ? (
         <>
-          <p className="text-sm text-neutral-500">
+          <p className="text-sm text-ink-muted">
             {list.data.total} result{list.data.total === 1 ? "" : "s"}
           </p>
           {list.data.items.length === 0 ? (
-            <p className="text-neutral-600">No applications yet.</p>
+            <Surface>
+              <p className="text-ink-muted">No applications yet.</p>
+            </Surface>
           ) : (
             <ul className="flex flex-col gap-2">
               {list.data.items.map((app) => (
-                <li key={app.id} className="border-b border-neutral-200 py-2">
+                <li key={app.id}>
                   <Link
-                    className="font-medium underline"
                     to={`/applications/${app.id}`}
+                    className={`flex flex-wrap items-center justify-between gap-3 rounded-[var(--radius-panel)] border border-border/70 border-l-4 bg-surface/90 px-4 py-3.5 no-underline transition-colors hover:bg-surface ${STATUS_EDGE[app.status]}`}
                   >
-                    {app.company} — {app.title}
+                    <span className="min-w-0">
+                      <span className="block font-medium text-ink">
+                        {app.company} — {app.title}
+                      </span>
+                      <span className="mt-1 block text-sm text-ink-muted">
+                        {[
+                          app.employmentType
+                            ? employmentTypeLabel(app.employmentType)
+                            : null,
+                          app.workplaceType
+                            ? workplaceTypeLabel(app.workplaceType)
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ") || "Details open on click"}
+                      </span>
+                    </span>
+                    <span className="flex flex-wrap items-center gap-2">
+                      <StatusChip status={app.status} />
+                      <PriorityChip priority={app.priority} />
+                    </span>
                   </Link>
-                  <p className="text-sm text-neutral-600">
-                    {app.status} · {app.priority}
-                    {app.employmentType ? ` · ${app.employmentType}` : ""}
-                    {app.workplaceType ? ` · ${app.workplaceType}` : ""}
-                  </p>
                 </li>
               ))}
             </ul>
           )}
           <div className="flex items-center gap-3">
-            <button
-              className="rounded border border-neutral-300 px-3 py-1 text-sm disabled:opacity-50"
+            <Button
+              variant="secondary"
               type="button"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Previous
-            </button>
-            <span className="text-sm text-neutral-600">
+            </Button>
+            <span className="text-sm text-ink-muted">
               Page {page} of {totalPages}
             </span>
-            <button
-              className="rounded border border-neutral-300 px-3 py-1 text-sm disabled:opacity-50"
+            <Button
+              variant="secondary"
               type="button"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => p + 1)}
             >
               Next
-            </button>
+            </Button>
           </div>
         </>
       ) : null}
-    </main>
+    </AppShell>
   );
 }

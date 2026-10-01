@@ -1,6 +1,11 @@
 import { useDroppable } from "@dnd-kit/core";
 import { BOARD_PRIORITY_LANES, type BoardCells } from "../../lib/board";
 import { columnId } from "../../lib/boardDnd";
+import {
+  STATUS_COLUMN,
+  STATUS_COLUMN_OVER,
+  statusLabel,
+} from "../../lib/statusColors";
 import type { ApplicationStatus } from "../../lib/types";
 import { BoardCell } from "./BoardCell";
 
@@ -28,12 +33,13 @@ export function BoardColumn({
       ref={setNodeRef}
       role="region"
       aria-label={status}
-      className={`flex w-72 shrink-0 flex-col gap-3 rounded border bg-neutral-50 p-3 ${
-        isOver ? "border-neutral-900" : "border-neutral-200"
+      className={`flex w-72 shrink-0 flex-col gap-3 rounded-[var(--radius-panel)] border p-3 transition-[box-shadow,background-color] ${STATUS_COLUMN[status]} ${
+        isOver ? STATUS_COLUMN_OVER[status] : ""
       }`}
     >
-      <h2 className="text-sm font-semibold text-neutral-900">
-        {status} ({count})
+      <h2 className="font-display text-sm font-semibold text-ink">
+        {statusLabel(status)}{" "}
+        <span className="font-sans font-medium text-ink-muted">({count})</span>
       </h2>
       {BOARD_PRIORITY_LANES.map((priority) => (
         <BoardCell
