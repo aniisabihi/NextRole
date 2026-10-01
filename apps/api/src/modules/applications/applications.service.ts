@@ -7,6 +7,11 @@ import type {
 } from "@prisma/client";
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
+import {
+  type FieldDiff,
+  serializeDiffValue,
+  valuesEqual,
+} from "../activities/field-diff.js";
 import type {
   BoardBulkStatusBody,
   BoardReorderBody,
@@ -25,24 +30,8 @@ const PRIORITY_RANK: Record<Priority, number> = {
 
 const ACTIVITY_SOFT_CAP = 200;
 
-type FieldDiff = Record<string, { from: unknown; to: unknown }>;
-
 export function priorityRankFor(priority: Priority): number {
   return PRIORITY_RANK[priority];
-}
-
-function valuesEqual(a: unknown, b: unknown): boolean {
-  if (a instanceof Date && b instanceof Date) {
-    return a.getTime() === b.getTime();
-  }
-  return a === b;
-}
-
-function serializeDiffValue(value: unknown): unknown {
-  if (value instanceof Date) {
-    return value.toISOString();
-  }
-  return value ?? null;
 }
 
 export async function createApplication(
