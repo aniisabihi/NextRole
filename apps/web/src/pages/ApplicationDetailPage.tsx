@@ -5,7 +5,13 @@ import { AppShell } from "../components/AppShell";
 import { Button, ButtonLink } from "../components/ui/Button";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
-import { statusLabel } from "../lib/statusColors";
+import {
+  employmentTypeLabel,
+  enumLabel,
+  priorityLabel,
+  statusLabel,
+  workplaceTypeLabel,
+} from "../lib/labels";
 import { InterviewsSection } from "../components/interviews/InterviewsSection";
 import { apiClient } from "../lib/apiClient";
 import {
@@ -43,7 +49,7 @@ function formatWhen(iso: string): string {
 
 function formatDiffValue(value: unknown): string {
   if (value === null || value === undefined) return "—";
-  if (typeof value === "string") return value;
+  if (typeof value === "string") return enumLabel(value);
   return JSON.stringify(value);
 }
 
@@ -183,7 +189,7 @@ function ActivityItem({ activity }: { activity: Activity }) {
       <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
         <p className="text-sm font-semibold text-ink">Created</p>
         <p className="text-sm text-ink-muted">
-          {p.company} — {p.title} ({p.status})
+          {p.company} — {p.title} ({enumLabel(p.status)})
         </p>
         <p className="text-xs text-ink-faint">{when}</p>
       </li>
@@ -196,7 +202,7 @@ function ActivityItem({ activity }: { activity: Activity }) {
       <li className="rounded-[var(--radius-control)] border border-border/60 border-l-4 border-l-accent/60 bg-paper/40 px-4 py-3">
         <p className="text-sm font-semibold text-ink">Status changed</p>
         <p className="text-sm text-ink-muted">
-          {p.from} → {p.to}
+          {enumLabel(p.from)} → {enumLabel(p.to)}
         </p>
         <p className="text-xs text-ink-faint">{when}</p>
       </li>
@@ -403,7 +409,7 @@ export function ApplicationDetailPage() {
               <option value="">—</option>
               {EMPLOYMENT_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {employmentTypeLabel(t)}
                 </option>
               ))}
             </select>
@@ -418,7 +424,7 @@ export function ApplicationDetailPage() {
               <option value="">—</option>
               {WORKPLACE_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {workplaceTypeLabel(t)}
                 </option>
               ))}
             </select>
@@ -450,7 +456,7 @@ export function ApplicationDetailPage() {
             >
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {priorityLabel(p)}
                 </option>
               ))}
             </select>

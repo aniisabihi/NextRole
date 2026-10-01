@@ -8,7 +8,14 @@ import { PageHeader } from "../components/ui/PageHeader";
 import { PriorityChip, StatusChip } from "../components/ui/StatusChip";
 import { Surface } from "../components/ui/Surface";
 import { apiClient } from "../lib/apiClient";
-import { STATUS_EDGE, statusLabel } from "../lib/statusColors";
+import { STATUS_EDGE } from "../lib/statusColors";
+import {
+  employmentTypeLabel,
+  sortFieldLabel,
+  statusLabel,
+  workplaceTypeLabel,
+  priorityLabel,
+} from "../lib/labels";
 import {
   APPLICATION_SORT_FIELDS,
   APPLICATION_STATUSES,
@@ -123,7 +130,7 @@ export function ApplicationsPage() {
             <option value="">Any</option>
             {EMPLOYMENT_TYPES.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {employmentTypeLabel(t)}
               </option>
             ))}
           </TextSelect>
@@ -136,7 +143,7 @@ export function ApplicationsPage() {
             <option value="">Any</option>
             {WORKPLACE_TYPES.map((t) => (
               <option key={t} value={t}>
-                {t}
+                {workplaceTypeLabel(t)}
               </option>
             ))}
           </TextSelect>
@@ -149,7 +156,7 @@ export function ApplicationsPage() {
             <option value="">Any</option>
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>
-                {p}
+                {priorityLabel(p)}
               </option>
             ))}
           </TextSelect>
@@ -163,7 +170,7 @@ export function ApplicationsPage() {
           >
             {APPLICATION_SORT_FIELDS.map((f) => (
               <option key={f} value={f}>
-                {f}
+                {sortFieldLabel(f)}
               </option>
             ))}
           </TextSelect>
@@ -175,8 +182,8 @@ export function ApplicationsPage() {
               onFilterChange(setOrder, e.target.value as "asc" | "desc")
             }
           >
-            <option value="desc">desc</option>
-            <option value="asc">asc</option>
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
           </TextSelect>
         </Field>
       </Surface>
@@ -212,7 +219,14 @@ export function ApplicationsPage() {
                         {app.company} — {app.title}
                       </span>
                       <span className="mt-1 block text-sm text-ink-muted">
-                        {[app.employmentType, app.workplaceType]
+                        {[
+                          app.employmentType
+                            ? employmentTypeLabel(app.employmentType)
+                            : null,
+                          app.workplaceType
+                            ? workplaceTypeLabel(app.workplaceType)
+                            : null,
+                        ]
                           .filter(Boolean)
                           .join(" · ") || "Details open on click"}
                       </span>

@@ -2,6 +2,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Link } from "react-router-dom";
 import { PRIORITY_CHIP } from "../../lib/statusColors";
+import { priorityLabel } from "../../lib/labels";
 import { cardId } from "../../lib/boardDnd";
 import type { Application } from "../../lib/types";
 
@@ -16,7 +17,7 @@ export function BoardCardBody({ app }: { app: Application }) {
       <span
         className={`mt-1 inline-flex w-fit items-center rounded-[0.5rem] px-1.5 py-0.5 text-[0.65rem] font-semibold ${PRIORITY_CHIP[app.priority]}`}
       >
-        {app.priority}
+        {priorityLabel(app.priority)}
       </span>
     </Link>
   );

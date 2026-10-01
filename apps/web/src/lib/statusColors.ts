@@ -1,5 +1,7 @@
 import type { ApplicationStatus, Priority } from "./types";
 
+export { statusLabel, priorityLabel } from "./labels";
+
 export const STATUS_SURFACE: Record<ApplicationStatus, string> = {
   SAVED: "bg-status-saved text-status-saved-ink",
   APPLIED: "bg-status-applied text-status-applied-ink",
@@ -49,7 +51,3 @@ export const PRIORITY_CHIP: Record<Priority, string> = {
   MEDIUM: "bg-priority-medium text-priority-medium-ink",
   HIGH: "bg-priority-high text-priority-high-ink",
 };
-
-export function statusLabel(status: ApplicationStatus): string {
-  return status.replaceAll("_", " ");
-}

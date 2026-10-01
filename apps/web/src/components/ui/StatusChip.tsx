@@ -1,9 +1,6 @@
 import type { ApplicationStatus, Priority } from "../../lib/types";
-import {
-  PRIORITY_CHIP,
-  STATUS_SURFACE,
-  statusLabel,
-} from "../../lib/statusColors";
+import { priorityLabel, statusLabel } from "../../lib/labels";
+import { PRIORITY_CHIP, STATUS_SURFACE } from "../../lib/statusColors";
 
 export function StatusChip({ status }: { status: ApplicationStatus }) {
   return (
@@ -20,7 +17,7 @@ export function PriorityChip({ priority }: { priority: Priority }) {
     <span
       className={`inline-flex items-center rounded-[0.625rem] px-2.5 py-0.5 text-xs font-semibold tracking-wide ${PRIORITY_CHIP[priority]}`}
     >
-      {priority}
+      {priorityLabel(priority)}
     </span>
   );
 }

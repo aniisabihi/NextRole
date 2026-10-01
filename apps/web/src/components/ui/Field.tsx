@@ -38,9 +38,7 @@ export function TextSelect({
   className = "",
   ...props
 }: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select className={`${controlClass} pr-10 ${className}`} {...props} />
-  );
+  return <select className={`${controlClass} pr-10 ${className}`} {...props} />;
 }
 
 export function TextTextarea({

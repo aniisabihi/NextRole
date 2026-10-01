@@ -4,6 +4,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { PRIORITY_CHIP } from "../../lib/statusColors";
+import { priorityLabel } from "../../lib/labels";
 import { cardId, cellId } from "../../lib/boardDnd";
 import type { Application, ApplicationStatus, Priority } from "../../lib/types";
 import { BoardCard } from "./BoardCard";
@@ -34,9 +35,9 @@ export function BoardCell({
       className="flex flex-col gap-2"
     >
       <h3
-        className={`inline-flex w-fit items-center rounded-[0.625rem] px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide ${PRIORITY_CHIP[priority]}`}
+        className={`inline-flex w-fit items-center rounded-[0.625rem] px-2 py-0.5 text-[0.65rem] font-semibold tracking-wide ${PRIORITY_CHIP[priority]}`}
       >
-        {priority} ({items.length})
+        {priorityLabel(priority)} ({items.length})
       </h3>
       <SortableContext
         items={items.map((a) => cardId(a.id))}

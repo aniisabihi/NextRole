@@ -11,7 +11,12 @@ import {
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
 import { apiClient } from "../lib/apiClient";
-import { statusLabel } from "../lib/statusColors";
+import {
+  employmentTypeLabel,
+  priorityLabel,
+  statusLabel,
+  workplaceTypeLabel,
+} from "../lib/labels";
 import {
   APPLICATION_STATUSES,
   EMPLOYMENT_TYPES,
@@ -116,7 +121,7 @@ export function ApplicationNewPage() {
               <option value="">—</option>
               {EMPLOYMENT_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {employmentTypeLabel(t)}
                 </option>
               ))}
             </TextSelect>
@@ -129,7 +134,7 @@ export function ApplicationNewPage() {
               <option value="">—</option>
               {WORKPLACE_TYPES.map((t) => (
                 <option key={t} value={t}>
-                  {t}
+                  {workplaceTypeLabel(t)}
                 </option>
               ))}
             </TextSelect>
@@ -153,7 +158,7 @@ export function ApplicationNewPage() {
             >
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {priorityLabel(p)}
                 </option>
               ))}
             </TextSelect>
