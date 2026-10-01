@@ -61,6 +61,7 @@ export type Application = {
   status: ApplicationStatus;
   priority: Priority;
   priorityRank: number;
+  boardOrder: number;
   notes: string | null;
   contactName: string | null;
   contactEmail: string | null;
