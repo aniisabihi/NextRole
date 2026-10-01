@@ -7,6 +7,7 @@ import { errorHandler } from "./shared/middleware/error-handler.js";
 import { ensureCsrfCookie, csrfPreHandler } from "./shared/middleware/csrf.js";
 import { originPreHandler } from "./shared/middleware/origin.js";
 import { applicationsRoutes } from "./modules/applications/routes.js";
+import { interviewsRoutes } from "./modules/interviews/routes.js";
 import { authRoutes } from "./modules/auth/routes.js";
 import { usersRoutes } from "./modules/users/routes.js";
 
@@ -35,6 +36,9 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: "/api/auth" });
   await app.register(usersRoutes, { prefix: "/api" });
   await app.register(applicationsRoutes, { prefix: "/api/applications" });
+  await app.register(interviewsRoutes, {
+    prefix: "/api/applications/:applicationId/interviews",
+  });
 
   return app;
 }
