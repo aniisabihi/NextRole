@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (done on `feat/phase-2-applications`):** applications core — see `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1 (done):** auth foundation. **Phase 2 (done on `main`, [PR #2](https://github.com/aniisabihi/NextRole/pull/2)):** applications core. **Next:** Phase 3 Kanban. See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
@@ -31,12 +31,15 @@ docker compose up -d
 
 cp .env.example apps/api/.env
 npm install
+npm exec -w apps/api -- prisma generate   # required after fresh install / wiped node_modules
 npm run db:migrate
 npm run dev
 ```
 
 - API: `http://localhost:3000`
 - Web: `http://localhost:5173` (proxies `/api` → API)
+
+Avoid `npm audit fix --force` — it can break the prisma / `@prisma/client` version pair.
 
 ## Environment
 

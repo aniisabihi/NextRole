@@ -60,7 +60,7 @@ Build **incrementally**. Do not implement everything in one phase.
 | Phase                       | Status                                 | Deliverable                                                                                   |
 | --------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
 | **1 — Auth foundation**     | **Done** (on `main`)                   | Cookie auth, CSRF, refresh rotation/reuse, login/register/dashboard shell, Docker, CI, README |
-| **2 — Applications core**   | **Done on `feat/phase-2-applications`** | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
+| **2 — Applications core**   | **Done** (on `main`, PR #2)            | CRUD, list/filter/sort, soft transitions, activities, FE list/create/detail                   |
 | **3 — Kanban**              | Not started                            | Board UI + drag/move; reuse Phase 2 transition rules                                          |
 | **4 — Interviews**          | Not started                            | Interview CRUD nested under applications                                                      |
 | **5 — Dashboard analytics** | Not started                            | Real aggregates only (no fake numbers)                                                        |
@@ -94,9 +94,9 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ---
 
-## Phase 2 — implemented (this branch)
+## Phase 2 — completed
 
-**Branch:** `feat/phase-2-applications` (merge to `main` when PR lands).
+**Merged:** PR [#2](https://github.com/aniisabihi/NextRole/pull/2) → `main` (`68e7068`).
 
 **Scope locked (option A):** applications core only — **no** Kanban, interviews, BullMQ, or fake dashboard stats.
 
@@ -106,6 +106,8 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 - List: `q`, status/company/employment/workplace/priority filters, sort (incl. `priorityRank`), pagination
 - Soft status transitions (`assertTransition`); activities timeline
 - FE: `/applications`, `/applications/new`, `/applications/:id` + dashboard recent links
+- Invalid/malformed dates → `400`; list pagination uses `id` tiebreaker; no-op PATCH preserves `updatedAt`
+- Vitest API suite **76** tests (Phase 1+2)
 
 **Extra field decision:** two dimensions —
 
@@ -124,12 +126,11 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 - Plan: `docs/superpowers/plans/2026-09-30-nextrole-phase2.md` (**Executed via SDD**)
 - README Phase 2 section: endpoints, enums, transition matrix, employment vs workplace
 
-**Next when starting a new session:** Phase 3 Kanban (reuse transition rules); do not re-implement Phase 2.
 ---
 
-## Phases left (after Phase 2)
+## Phases left (next up)
 
-1. **Kanban** — board by status; move cards; server already validates transitions
+1. **Kanban (Phase 3)** — board by status; move cards; server already validates transitions
 2. **Interviews** — date/time, type, interviewer, location/URL, notes
 3. **Dashboard analytics** — totals, monthly, rates from real rows
 4. **Reminders + BullMQ worker** — independent worker process; Redis required
@@ -141,11 +142,14 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ```bash
 docker compose up -d   # or docker-compose up -d
-cp .env.example apps/api/.env
+cp .env.example apps/api/.env   # skip if apps/api/.env already set
 npm install
+npm exec -w apps/api -- prisma generate   # required after fresh install
 npm run db:migrate
 npm run dev            # API :3000 + web :5173 in parallel
 ```
+
+Do **not** run `npm audit fix --force` — it breaks prisma/`@prisma/client` pairing.
 
 Details: root `README.md`.
 
@@ -153,7 +157,7 @@ Details: root `README.md`.
 
 ## Agent / session tips
 
-- After Phase 2 merge, update **this file** again if branch tip / PR URL should be recorded on `main`.
+- Next session: Phase 3 Kanban design/plan; reuse `assertTransition` + application PATCH. Do not re-implement Phase 2.
 - Prefer inspecting existing modules before inventing new patterns.
 - Spec > plan > improvisation; document intentional deviations in README.
 - Do not commit secrets (`.env`).
