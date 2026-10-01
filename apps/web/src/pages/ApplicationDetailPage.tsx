@@ -2,7 +2,12 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { AppNav } from "../components/AppNav";
+import { InterviewsSection } from "../components/interviews/InterviewsSection";
 import { apiClient } from "../lib/apiClient";
+import {
+  formatInterviewActivity,
+  isInterviewActivity,
+} from "../lib/interview-activity";
 import {
   APPLICATION_STATUSES,
   EMPLOYMENT_TYPES,
@@ -200,6 +205,18 @@ function ActivityItem({ activity }: { activity: Activity }) {
             </li>
           ))}
         </ul>
+        <p className="text-xs text-neutral-500">{when}</p>
+      </li>
+    );
+  }
+
+  if (isInterviewActivity(activity)) {
+    // INTERVIEW_CREATED | INTERVIEW_UPDATED | INTERVIEW_STATUS_CHANGED | INTERVIEW_DELETED
+    return (
+      <li className="border-l-2 border-neutral-300 pl-3">
+        <p className="text-sm font-medium">
+          {formatInterviewActivity(activity)}
+        </p>
         <p className="text-xs text-neutral-500">{when}</p>
       </li>
     );
@@ -544,6 +561,8 @@ export function ApplicationDetailPage() {
           {saveMutation.isPending ? "Saving…" : "Save"}
         </button>
       </form>
+
+      <InterviewsSection applicationId={id} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Timeline</h2>
