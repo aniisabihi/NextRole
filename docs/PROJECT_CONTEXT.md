@@ -66,10 +66,10 @@ Build **incrementally**. Do not implement everything in one phase.
 | **UI — Soft Chromatic**     | **Done** (on `main`, PR #5)                              | Full FE visual system: pastel status colors, Fraunces/Figtree, AppShell, all surfaces                     |
 | **5 — Dashboard analytics** | **Done** (on `main`, PR #6)                              | `GET /api/dashboard/stats`, Soft Chromatic stat tiles + CSS bar chart, real aggregates only               |
 | **6 — Reminders / BullMQ**  | **Done** (on `main`, PR #7)                              | MANUAL/INTERVIEW/FOLLOW_UP reminders, BullMQ worker, bell UI, prefs                                       |
-| **7 — FE polish + board**   | **Done on branch `feat/phase-7-fe-polish` (PR pending)** | UI foundations, reminder a11y, board filters/collapse/redesign, `nextInterviewAt` on application payloads |
+| **7 — FE polish + board**   | **Done** (on `main`, PR #8)                              | UI foundations, reminder a11y, board filters/collapse/redesign, `nextInterviewAt` on application payloads |
 | **Later**                   | —                                                        | File uploads, `__Host-` cookies, session UI, email verify, etc.                                           |
 
-Phase numbers 3–6 are the intended order; adjust only with an explicit design pass.
+Phase numbers 3–7 were the intended order through board polish; further work is in the Later bucket unless a new phase is scoped.
 
 ---
 
@@ -198,9 +198,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 ---
 
-## Phase 7 — Frontend polish + board redesign (done on branch, PR pending)
-
-**Branch:** `feat/phase-7-fe-polish`. After merge, set status to Done on `main`.
+## Phase 7 — Frontend polish + board redesign (done on `main`, PR #8)
 
 **Delivered**
 
@@ -222,7 +220,7 @@ Phase numbers 3–6 are the intended order; adjust only with an explicit design 
 
 1. ~~Dashboard analytics (Phase 5)~~ — done on `main` (PR #6)
 2. ~~Reminders + BullMQ worker (Phase 6)~~ — done on `main` (PR #7)
-3. **Frontend polish + board redesign (Phase 7)** — done on branch `feat/phase-7-fe-polish`, PR pending (bump to `main` after merge)
+3. ~~Frontend polish + board redesign (Phase 7)~~ — done on `main` (PR #8)
 4. **Later: hardening / polish** — file uploads, `__Host-` cookies, session management UI, richer contacts
 
 ---
