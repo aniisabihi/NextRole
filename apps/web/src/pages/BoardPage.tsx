@@ -39,11 +39,17 @@ import {
   hasActiveBoardFilters,
   type BoardFilters,
 } from "../lib/boardFilter";
+import {
+  readCollapsedStatuses,
+  toggleCollapsedStatus,
+  writeCollapsedStatuses,
+} from "../lib/boardCollapse";
 import { useReducedMotion } from "../lib/useReducedMotion";
 import {
   APPLICATION_STATUSES,
   type Application,
   type ApplicationListResponse,
+  type ApplicationStatus,
   type ApplicationResponse,
 } from "../lib/types";
 
@@ -125,7 +131,32 @@ export function BoardPage() {
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  const [collapsed, setCollapsed] = useState<ReadonlySet<ApplicationStatus>>(
+    readCollapsedStatuses,
+  );
   const busy = useRef(false);
+
+  function updateCollapsed(
+    fn: (c: ReadonlySet<ApplicationStatus>) => ReadonlySet<ApplicationStatus>,
+  ) {
+    setCollapsed((prev) => {
+      const next = fn(prev);
+      if (next !== prev) writeCollapsedStatuses(next);
+      return next;
+    });
+  }
+
+  function toggleCollapse(status: ApplicationStatus) {
+    updateCollapsed((c) => toggleCollapsedStatus(c, status));
+  }
+
+  /** After a successful drop on a collapsed column, reveal it. */
+  function expandStatus(status: ApplicationStatus | undefined) {
+    if (!status) return;
+    updateCollapsed((c) =>
+      c.has(status) ? toggleCollapsedStatus(c, status) : c,
+    );
+  }
 
   const announceSelection = (n: number) =>
     setMessage(n === 0 ? "Selection cleared." : `${n} selected.`);
@@ -156,12 +187,16 @@ export function BoardPage() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [selectedIds, activeId]);
 
-  // Drop selected ids not visible on the board (deleted, paged out, filtered out).
+  // Drop selected ids not visible on the board (deleted, paged out, filtered
+  // out, or in a collapsed column).
   useEffect(() => {
     if (!cells || selectedIds.size === 0) return;
-    const live = [...selectedIds].filter((id) => findCard(cells, id));
+    const live = [...selectedIds].filter((id) => {
+      const card = findCard(cells, id);
+      return card !== null && !collapsed.has(card.status);
+    });
     if (live.length !== selectedIds.size) setSelectedIds(new Set(live));
-  }, [cells, selectedIds]);
+  }, [cells, selectedIds, collapsed]);
 
   // Announce filtered count after filter changes (debounced; reuses polite region).
   const filterAnnounced = useRef(false);
@@ -334,6 +369,7 @@ export function BoardPage() {
       );
       setSelectedIds(new Set());
       setMessage(`Moved ${moved.length}, skipped ${skipped.length}`);
+      expandStatus(action.toStatus);
     } catch (err) {
       setMessage(
         `Could not move ${plural(action.ids.length)}: ${
@@ -385,6 +421,7 @@ export function BoardPage() {
     busy.current = true;
     try {
       await perform(action, moved);
+      if (action.type !== "reorder") expandStatus(action.status);
     } catch (err) {
       setMessage(
         `Could not move ${label(moved)}: ${
@@ -476,6 +513,8 @@ export function BoardPage() {
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
                 filtered={filtersActive}
+                collapsed={collapsed.has(status)}
+                onToggleCollapse={toggleCollapse}
               />
             ))}
           </div>
