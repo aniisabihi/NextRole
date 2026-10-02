@@ -6,6 +6,9 @@ import { MonthlyCreatedChart } from "../components/dashboard/MonthlyCreatedChart
 import { StatTiles } from "../components/dashboard/StatTiles";
 import { StatusBreakdown } from "../components/dashboard/StatusBreakdown";
 import { ButtonLink } from "../components/ui/Button";
+import { EmptyState } from "../components/ui/EmptyState";
+import { InlineError } from "../components/ui/InlineError";
+import { LoadingBlock } from "../components/ui/LoadingBlock";
 import { PageHeader } from "../components/ui/PageHeader";
 import { StatusChip } from "../components/ui/StatusChip";
 import { Surface } from "../components/ui/Surface";
@@ -44,7 +47,7 @@ export function DashboardPage() {
   if (me.isPending) {
     return (
       <AppShell>
-        <p className="text-ink-muted">Loading…</p>
+        <LoadingBlock />
       </AppShell>
     );
   }
@@ -53,7 +56,7 @@ export function DashboardPage() {
     return (
       <AppShell>
         <Surface className="flex flex-col gap-3">
-          <p className="text-status-rejected-ink">Could not load profile.</p>
+          <InlineError>Could not load profile.</InlineError>
           <Link
             className="font-medium text-accent-hover underline-offset-2 hover:underline"
             to="/login"
@@ -83,17 +86,9 @@ export function DashboardPage() {
         }
       />
 
-      {stats.isPending ? (
-        <Surface>
-          <p className="text-sm text-ink-muted">Loading stats…</p>
-        </Surface>
-      ) : null}
+      {stats.isPending ? <LoadingBlock label="Loading stats…" /> : null}
       {stats.isError ? (
-        <Surface>
-          <p className="text-sm text-status-rejected-ink">
-            Could not load dashboard stats.
-          </p>
-        </Surface>
+        <InlineError>Could not load dashboard stats.</InlineError>
       ) : null}
       {stats.data ? (
         <>
@@ -112,17 +107,20 @@ export function DashboardPage() {
           Recent applications
         </h2>
         {recent.isPending ? (
-          <p className="text-sm text-ink-muted">Loading…</p>
+          <LoadingBlock label="Loading recent applications…" />
         ) : null}
         {recent.isError ? (
-          <p className="text-sm text-status-rejected-ink">
-            Could not load applications.
-          </p>
+          <InlineError>Could not load applications.</InlineError>
         ) : null}
         {recent.data?.items.length === 0 ? (
-          <p className="text-sm text-ink-muted">
-            No applications yet. Create your first one to fill the board.
-          </p>
+          <EmptyState
+            headingLevel={3}
+            title="No applications yet"
+            description="Create your first one to fill the board."
+            action={
+              <ButtonLink to="/applications/new">New application</ButtonLink>
+            }
+          />
         ) : null}
         {recent.data && recent.data.items.length > 0 ? (
           <ul className="flex flex-col gap-2">

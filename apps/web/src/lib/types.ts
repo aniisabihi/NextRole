@@ -69,6 +69,7 @@ export type Application = {
   contactRole: string | null;
   resumeVersion: string | null;
   coverLetterVersion: string | null;
+  nextInterviewAt: string | null;
   createdAt: string;
   updatedAt: string;
 };

@@ -119,6 +119,72 @@ describe("applications HTTP: CRUD", () => {
     });
   });
 
+  it("POST / returns nextInterviewAt null", async () => {
+    const session = await registerAndLogin(app);
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: { company: "Acme", title: "Eng" },
+    });
+    expect(res.statusCode).toBe(201);
+    expect(res.json().application).toHaveProperty("nextInterviewAt", null);
+  });
+
+  it("GET /:id includes nextInterviewAt", async () => {
+    const session = await registerAndLogin(app);
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: { company: "Acme", title: "Eng" },
+    });
+    const id = createRes.json().application.id as string;
+
+    const none = await app.inject({
+      method: "GET",
+      url: `/api/applications/${id}`,
+      headers: { Cookie: session.cookieHeader },
+    });
+    expect(none.json().application).toHaveProperty("nextInterviewAt", null);
+
+    const when = new Date(Date.now() + 48 * 3_600_000);
+    await prisma.interview.create({
+      data: { applicationId: id, scheduledAt: when, type: "VIDEO" },
+    });
+    const withIv = await app.inject({
+      method: "GET",
+      url: `/api/applications/${id}`,
+      headers: { Cookie: session.cookieHeader },
+    });
+    expect(withIv.json().application.nextInterviewAt).toBe(when.toISOString());
+  });
+
+  it("PATCH /:id includes nextInterviewAt", async () => {
+    const session = await registerAndLogin(app);
+    const createRes = await app.inject({
+      method: "POST",
+      url: "/api/applications",
+      headers: mutationHeaders(session),
+      payload: { company: "Acme", title: "Eng" },
+    });
+    const id = createRes.json().application.id as string;
+    const when = new Date(Date.now() + 48 * 3_600_000);
+    await prisma.interview.create({
+      data: { applicationId: id, scheduledAt: when, type: "VIDEO" },
+    });
+    const patchRes = await app.inject({
+      method: "PATCH",
+      url: `/api/applications/${id}`,
+      headers: mutationHeaders(session),
+      payload: { notes: "x" },
+    });
+    expect(patchRes.statusCode).toBe(200);
+    expect(patchRes.json().application.nextInterviewAt).toBe(
+      when.toISOString(),
+    );
+  });
+
   it("deletes application with 204 and removes row", async () => {
     const session = await registerAndLogin(app);
 

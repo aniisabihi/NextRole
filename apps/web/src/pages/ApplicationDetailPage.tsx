@@ -3,6 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { Button, ButtonLink } from "../components/ui/Button";
+import { EmptyState } from "../components/ui/EmptyState";
+import {
+  Field,
+  TextInput,
+  TextSelect,
+  TextTextarea,
+} from "../components/ui/Field";
+import { InlineError } from "../components/ui/InlineError";
+import { LoadingBlock } from "../components/ui/LoadingBlock";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
 import {
@@ -270,6 +279,10 @@ export function ApplicationDetailPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    company?: string;
+    title?: string;
+  }>({});
 
   useEffect(() => {
     void fetch("/api/auth/csrf", { credentials: "include" });
@@ -326,6 +339,18 @@ export function ApplicationDetailPage() {
     e.preventDefault();
     if (!form || !appQuery.data) return;
     setError(null);
+    const nextErrors: { company?: string; title?: string } = {};
+    if (!form.company.trim()) nextErrors.company = "Company is required.";
+    if (!form.title.trim()) nextErrors.title = "Title is required.";
+    setFieldErrors(nextErrors);
+    if (nextErrors.company || nextErrors.title) {
+      document
+        .getElementById(
+          nextErrors.company ? "app-detail-company" : "app-detail-title",
+        )
+        ?.focus();
+      return;
+    }
     const patch = buildPatch(form, appQuery.data.application);
     if (Object.keys(patch).length === 0) {
       setError("No changes to save");
@@ -337,9 +362,7 @@ export function ApplicationDetailPage() {
   if (!id) {
     return (
       <AppShell>
-        <p className="text-sm text-status-rejected-ink">
-          Missing application id.
-        </p>
+        <InlineError>Missing application id.</InlineError>
       </AppShell>
     );
   }
@@ -347,12 +370,12 @@ export function ApplicationDetailPage() {
   if (appQuery.isError) {
     return (
       <AppShell>
-        <p className="text-sm text-status-rejected-ink">
+        <InlineError>
           {appQuery.error instanceof Error
             ? appQuery.error.message
             : "Could not load application."}
-        </p>
-        <p className="mt-2 text-sm">
+        </InlineError>
+        <p className="text-sm">
           <Link
             className="font-medium text-accent-hover underline-offset-2 hover:underline"
             to="/applications"
@@ -367,7 +390,7 @@ export function ApplicationDetailPage() {
   if (appQuery.isLoading || !form) {
     return (
       <AppShell>
-        <p className="text-sm text-ink-muted">Loading…</p>
+        <LoadingBlock label="Loading application…" />
       </AppShell>
     );
   }
@@ -387,40 +410,34 @@ export function ApplicationDetailPage() {
       />
 
       <Surface as="form" className="flex flex-col gap-5" onSubmit={onSubmit}>
-        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-          Company
-          <input
-            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+        <Field label="Company" error={fieldErrors.company}>
+          <TextInput
+            id="app-detail-company"
             required
             maxLength={200}
             value={form.company}
             onChange={(e) => setField("company", e.target.value)}
           />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-          Title
-          <input
-            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+        </Field>
+        <Field label="Title" error={fieldErrors.title}>
+          <TextInput
+            id="app-detail-title"
             required
             maxLength={200}
             value={form.title}
             onChange={(e) => setField("title", e.target.value)}
           />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-          Location
-          <input
-            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+        </Field>
+        <Field label="Location">
+          <TextInput
             maxLength={200}
             value={form.location}
             onChange={(e) => setField("location", e.target.value)}
           />
-        </label>
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Employment type
-            <select
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
+          <Field label="Employment type">
+            <TextSelect
               value={form.employmentType}
               onChange={(e) => setField("employmentType", e.target.value)}
             >
@@ -430,12 +447,10 @@ export function ApplicationDetailPage() {
                   {employmentTypeLabel(t)}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Workplace type
-            <select
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
+            </TextSelect>
+          </Field>
+          <Field label="Workplace type">
+            <TextSelect
               value={form.workplaceType}
               onChange={(e) => setField("workplaceType", e.target.value)}
             >
@@ -445,14 +460,12 @@ export function ApplicationDetailPage() {
                   {workplaceTypeLabel(t)}
                 </option>
               ))}
-            </select>
-          </label>
+            </TextSelect>
+          </Field>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Status
-            <select
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
+          <Field label="Status">
+            <TextSelect
               value={form.status}
               onChange={(e) =>
                 setField("status", e.target.value as ApplicationStatus)
@@ -463,12 +476,10 @@ export function ApplicationDetailPage() {
                   {statusLabel(s)}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Priority
-            <select
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink"
+            </TextSelect>
+          </Field>
+          <Field label="Priority">
+            <TextSelect
               value={form.priority}
               onChange={(e) => setField("priority", e.target.value as Priority)}
             >
@@ -477,127 +488,101 @@ export function ApplicationDetailPage() {
                   {priorityLabel(p)}
                 </option>
               ))}
-            </select>
-          </label>
+            </TextSelect>
+          </Field>
         </div>
-        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-          Salary
-          <input
-            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+        <Field label="Salary">
+          <TextInput
             maxLength={100}
             value={form.salary}
             onChange={(e) => setField("salary", e.target.value)}
           />
-        </label>
-        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-          Job URL
-          <input
-            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+        </Field>
+        <Field label="Job URL">
+          <TextInput
             type="url"
             maxLength={2000}
             placeholder="https://"
             value={form.jobUrl}
             onChange={(e) => setField("jobUrl", e.target.value)}
           />
-        </label>
+        </Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Date discovered
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+          <Field label="Date discovered">
+            <TextInput
               type="date"
               value={form.dateDiscovered}
               onChange={(e) => setField("dateDiscovered", e.target.value)}
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Date applied
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+          </Field>
+          <Field label="Date applied">
+            <TextInput
               type="date"
               value={form.dateApplied}
               onChange={(e) => setField("dateApplied", e.target.value)}
             />
-          </label>
+          </Field>
         </div>
-        <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-          Notes
-          <textarea
-            className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+        <Field label="Notes">
+          <TextTextarea
             rows={4}
             maxLength={10000}
             value={form.notes}
             onChange={(e) => setField("notes", e.target.value)}
           />
-        </label>
+        </Field>
         <fieldset className="grid gap-4 sm:grid-cols-2">
           <legend className="mb-2 font-display text-base font-semibold text-ink">
             Contact
           </legend>
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Name
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+          <Field label="Name">
+            <TextInput
               maxLength={200}
               value={form.contactName}
               onChange={(e) => setField("contactName", e.target.value)}
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Role
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+          </Field>
+          <Field label="Role">
+            <TextInput
               maxLength={200}
               value={form.contactRole}
               onChange={(e) => setField("contactRole", e.target.value)}
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Email
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+          </Field>
+          <Field label="Email">
+            <TextInput
               type="email"
               maxLength={255}
               value={form.contactEmail}
               onChange={(e) => setField("contactEmail", e.target.value)}
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Phone
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+          </Field>
+          <Field label="Phone">
+            <TextInput
               maxLength={50}
               value={form.contactPhone}
               onChange={(e) => setField("contactPhone", e.target.value)}
             />
-          </label>
+          </Field>
         </fieldset>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Resume version
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+          <Field label="Resume version">
+            <TextInput
               maxLength={200}
               value={form.resumeVersion}
               onChange={(e) => setField("resumeVersion", e.target.value)}
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm text-ink-muted">
-            Cover letter version
-            <input
-              className="w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink"
+          </Field>
+          <Field label="Cover letter version">
+            <TextInput
               maxLength={200}
               value={form.coverLetterVersion}
               onChange={(e) => setField("coverLetterVersion", e.target.value)}
             />
-          </label>
+          </Field>
         </div>
-        {error ? (
-          <p className="text-sm text-status-rejected-ink" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <Button type="submit" disabled={saveMutation.isPending}>
+        {error ? <InlineError>{error}</InlineError> : null}
+        <Button type="submit" loading={saveMutation.isPending}>
           {saveMutation.isPending ? "Saving…" : "Save"}
         </Button>
       </Surface>
@@ -611,13 +596,15 @@ export function ApplicationDetailPage() {
           Timeline
         </h2>
         {activitiesQuery.isLoading ? (
-          <p className="text-sm text-ink-muted">Loading activities…</p>
+          <LoadingBlock label="Loading activities…" />
         ) : activitiesQuery.isError ? (
-          <p className="text-sm text-status-rejected-ink">
-            Could not load activities.
-          </p>
+          <InlineError>Could not load activities.</InlineError>
         ) : activities.length === 0 ? (
-          <p className="text-sm text-ink-muted">No activities yet.</p>
+          <EmptyState
+            headingLevel={3}
+            title="No activities yet"
+            description="Changes to this application will show up here."
+          />
         ) : (
           <ul className="flex flex-col gap-3">
             {activities.map((a) => (

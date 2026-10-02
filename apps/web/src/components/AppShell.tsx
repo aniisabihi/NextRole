@@ -6,6 +6,12 @@ import { ReminderBell } from "./reminders/ReminderBell";
 export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen">
+      <a
+        href="#main-content"
+        className="sr-only rounded-[var(--radius-control)] bg-surface px-4 py-2 text-sm font-medium text-ink focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50"
+      >
+        Skip to content
+      </a>
       <header className="border-b border-border/70 bg-surface/70 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
           <Link
@@ -20,7 +26,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8">
+      <main
+        id="main-content"
+        className="mx-auto flex max-w-5xl flex-col gap-6 px-6 py-8"
+      >
         {children}
       </main>
     </div>

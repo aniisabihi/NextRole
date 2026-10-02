@@ -30,13 +30,21 @@ export function Button({
   variant = "primary",
   className = "",
   children,
+  loading,
+  disabled,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   children: ReactNode;
+  loading?: boolean;
 }) {
   return (
-    <button className={buttonClassName(variant, className)} {...props}>
+    <button
+      className={buttonClassName(variant, className)}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      {...props}
+    >
       {children}
     </button>
   );

@@ -13,6 +13,13 @@ import {
 export const columnId = (status: ApplicationStatus) => `column:${status}`;
 export const cellId = (status: ApplicationStatus, priority: Priority) =>
   `cell:${status}:${priority}`;
+
+/** Drag handle accessible name. Company + title only (no interview text). */
+export const dragHandleLabel = (
+  app: Pick<Application, "company" | "title">,
+  selected: boolean,
+) => `Drag ${app.company}, ${app.title}${selected ? ", selected" : ""}`;
+
 export const cardId = (applicationId: string) => `card:${applicationId}`;
 
 export type ParsedId =
@@ -173,4 +180,16 @@ export function resolveMultiDrop(
     return { type: "unsupported" };
   }
   return { type: "bulk", ids: selected.map((a) => a.id), toStatus };
+}
+
+/**
+ * While board filters are active the visible cell lists are partial, but the
+ * reorder API needs the full cell's `orderedIds`. Block reorder only; status/
+ * priority updates and bulk status moves stay allowed.
+ */
+export function guardFilteredBoardAction(
+  action: DropAction | MultiDropAction,
+  filtersActive: boolean,
+): "allow" | "block-reorder" {
+  return filtersActive && action.type === "reorder" ? "block-reorder" : "allow";
 }

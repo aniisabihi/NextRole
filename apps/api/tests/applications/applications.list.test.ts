@@ -153,6 +153,99 @@ describe("applications HTTP: list", () => {
     expect(descItems.map((i) => i.priority)).toEqual(["HIGH", "MEDIUM", "LOW"]);
   });
 
+  describe("nextInterviewAt", () => {
+    const HOUR = 3_600_000;
+
+    async function listItems(
+      session: Awaited<ReturnType<typeof registerAndLogin>>,
+    ) {
+      const res = await app.inject({
+        method: "GET",
+        url: "/api/applications",
+        headers: { Cookie: session.cookieHeader },
+      });
+      expect(res.statusCode).toBe(200);
+      return res.json().items as Array<{
+        id: string;
+        nextInterviewAt: string | null;
+      }>;
+    }
+
+    it("null when no interviews", async () => {
+      const session = await registerAndLogin(app);
+      await createApp(session, { company: "Acme", title: "Role" });
+      const items = await listItems(session);
+      expect(items).toHaveLength(1);
+      expect(items[0]!.nextInterviewAt).toBeNull();
+    });
+
+    it("earliest future SCHEDULED", async () => {
+      const session = await registerAndLogin(app);
+      const a = await createApp(session, { company: "Acme", title: "Role" });
+      const soon = new Date(Date.now() + 24 * HOUR);
+      const later = new Date(Date.now() + 72 * HOUR);
+      await prisma.interview.create({
+        data: { applicationId: a.id, scheduledAt: later, type: "VIDEO" },
+      });
+      await prisma.interview.create({
+        data: { applicationId: a.id, scheduledAt: soon, type: "PHONE" },
+      });
+      const items = await listItems(session);
+      expect(items[0]!.nextInterviewAt).toBe(soon.toISOString());
+    });
+
+    it("null for past SCHEDULED / CANCELLED / COMPLETED / NO_SHOW", async () => {
+      const session = await registerAndLogin(app);
+      const a = await createApp(session, { company: "Acme", title: "Role" });
+      const future = new Date(Date.now() + 24 * HOUR);
+      const past = new Date(Date.now() - 24 * HOUR);
+      await prisma.interview.createMany({
+        data: [
+          { applicationId: a.id, scheduledAt: past, type: "PHONE" },
+          {
+            applicationId: a.id,
+            scheduledAt: future,
+            type: "PHONE",
+            status: "CANCELLED",
+          },
+          {
+            applicationId: a.id,
+            scheduledAt: future,
+            type: "PHONE",
+            status: "COMPLETED",
+          },
+          {
+            applicationId: a.id,
+            scheduledAt: future,
+            type: "PHONE",
+            status: "NO_SHOW",
+          },
+        ],
+      });
+      const items = await listItems(session);
+      expect(items[0]!.nextInterviewAt).toBeNull();
+    });
+
+    it("does not leak other user's interviews", async () => {
+      const a = await registerAndLogin(app);
+      const b = await registerAndLogin(app);
+      await createApp(a, { company: "Mine", title: "Role" });
+      const theirs = await createApp(b, { company: "Theirs", title: "Role" });
+      await prisma.interview.create({
+        data: {
+          applicationId: theirs.id,
+          scheduledAt: new Date(Date.now() + 24 * HOUR),
+          type: "PHONE",
+        },
+      });
+      const items = await listItems(a);
+      expect(items).toHaveLength(1);
+      expect(items[0]!.nextInterviewAt).toBeNull();
+      const bItems = await listItems(b);
+      expect(bItems[0]!.nextInterviewAt).not.toBeNull();
+    });
+  });
+
   it("scopes list to current user only", async () => {
     const a = await registerAndLogin(app);
     const b = await registerAndLogin(app);

@@ -9,7 +9,8 @@ import {
 /**
  * Modal dialog on native `<dialog>` + `showModal()`: browser traps focus,
  * makes the rest of the page inert, and labels via `aria-labelledby`.
- * Mount to open, unmount to close. Esc and backdrop click call `onClose`.
+ * Mount to open, unmount to close. Esc and the close button dismiss; backdrop click does not
+ * (avoids losing form input). Both call `onClose`.
  * On unmount focus returns to the opener, or `returnFocusRef` when the
  * opener is gone (e.g. a dropdown item that unmounted).
  */
@@ -61,9 +62,6 @@ export function Modal({
     <dialog
       ref={ref}
       aria-labelledby={titleId}
-      onClick={(e) => {
-        if (e.target === ref.current) onClose();
-      }}
       className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-[var(--radius-panel)] border border-border/80 bg-surface p-0 text-ink shadow-[0_8px_32px_rgba(26,31,46,0.16)] backdrop:bg-ink/30"
     >
       <div className="flex flex-col gap-4 p-6">

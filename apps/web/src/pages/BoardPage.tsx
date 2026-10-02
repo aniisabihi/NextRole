@@ -16,25 +16,41 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { AppShell } from "../components/AppShell";
-import { Button } from "../components/ui/Button";
+import { Button, ButtonLink } from "../components/ui/Button";
+import { EmptyState } from "../components/ui/EmptyState";
+import { InlineError } from "../components/ui/InlineError";
+import { LoadingBlock } from "../components/ui/LoadingBlock";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
 import { BoardCardBody } from "../components/board/BoardCard";
 import { BoardColumn } from "../components/board/BoardColumn";
+import { BoardToolbar } from "../components/board/BoardToolbar";
 import { apiClient } from "../lib/apiClient";
 import { groupForBoard } from "../lib/board";
 import {
   findCard,
+  guardFilteredBoardAction,
   parseDndId,
   resolveDrop,
   resolveMultiDrop,
   type DropAction,
 } from "../lib/boardDnd";
+import {
+  filterApplicationsForBoard,
+  hasActiveBoardFilters,
+  type BoardFilters,
+} from "../lib/boardFilter";
+import {
+  readCollapsedStatuses,
+  toggleCollapsedStatus,
+  writeCollapsedStatuses,
+} from "../lib/boardCollapse";
 import { useReducedMotion } from "../lib/useReducedMotion";
 import {
   APPLICATION_STATUSES,
   type Application,
   type ApplicationListResponse,
+  type ApplicationStatus,
   type ApplicationResponse,
 } from "../lib/types";
 
@@ -76,10 +92,41 @@ export function BoardPage() {
     queryFn: () => apiClient<ApplicationListResponse>(BOARD_PATH),
   });
 
-  const cells = useMemo(
-    () => (board.data ? groupForBoard(board.data.items) : null),
-    [board.data],
+  const [filters, setFilters] = useState<BoardFilters>({
+    priorities: [],
+    upcomingInterviewOnly: false,
+  });
+  const filtersActive = hasActiveBoardFilters(filters);
+  const clearFilters = () =>
+    setFilters({ priorities: [], upcomingInterviewOnly: false });
+
+  const allItems = board.data?.items;
+  const fullCells = useMemo(
+    () => (allItems ? groupForBoard(allItems) : null),
+    [allItems],
   );
+  const visibleItems = useMemo(
+    () =>
+      allItems
+        ? filtersActive
+          ? filterApplicationsForBoard(allItems, filters)
+          : allItems
+        : null,
+    [allItems, filters, filtersActive],
+  );
+  const visibleCells = useMemo(
+    () =>
+      !visibleItems
+        ? null
+        : visibleItems === allItems
+          ? fullCells
+          : groupForBoard(visibleItems),
+    [visibleItems, allItems, fullCells],
+  );
+  // Rendered + drag-resolved cells. Unfiltered: identical to fullCells (reorder
+  // safe, complete orderedIds). Filtered: visible subset; reorder blocked below.
+  const cells = visibleCells;
+  const visibleCount = visibleItems?.length ?? 0;
 
   const [message, setMessage] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -87,7 +134,32 @@ export function BoardPage() {
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
+  const [collapsed, setCollapsed] = useState<ReadonlySet<ApplicationStatus>>(
+    readCollapsedStatuses,
+  );
   const busy = useRef(false);
+
+  function updateCollapsed(
+    fn: (c: ReadonlySet<ApplicationStatus>) => ReadonlySet<ApplicationStatus>,
+  ) {
+    setCollapsed((prev) => {
+      const next = fn(prev);
+      if (next !== prev) writeCollapsedStatuses(next);
+      return next;
+    });
+  }
+
+  function toggleCollapse(status: ApplicationStatus) {
+    updateCollapsed((c) => toggleCollapsedStatus(c, status));
+  }
+
+  /** After a successful drop on a collapsed column, reveal it. */
+  function expandStatus(status: ApplicationStatus | undefined) {
+    if (!status) return;
+    updateCollapsed((c) =>
+      c.has(status) ? toggleCollapsedStatus(c, status) : c,
+    );
+  }
 
   const announceSelection = (n: number) =>
     setMessage(n === 0 ? "Selection cleared." : `${n} selected.`);
@@ -118,12 +190,31 @@ export function BoardPage() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [selectedIds, activeId]);
 
-  // Drop selected ids that no longer exist on the board (deleted, paged out).
+  // Drop selected ids not visible on the board (deleted, paged out, filtered
+  // out, or in a collapsed column).
   useEffect(() => {
     if (!cells || selectedIds.size === 0) return;
-    const live = [...selectedIds].filter((id) => findCard(cells, id));
+    const live = [...selectedIds].filter((id) => {
+      const card = findCard(cells, id);
+      return card !== null && !collapsed.has(card.status);
+    });
     if (live.length !== selectedIds.size) setSelectedIds(new Set(live));
-  }, [cells, selectedIds]);
+  }, [cells, selectedIds, collapsed]);
+
+  // Announce filtered count after filter changes (debounced; reuses polite region).
+  const filterAnnounced = useRef(false);
+  useEffect(() => {
+    if (!filterAnnounced.current) {
+      filterAnnounced.current = true;
+      return;
+    }
+    const t = setTimeout(
+      () => setMessage(`Showing ${plural(visibleCount)}`),
+      150,
+    );
+    return () => clearTimeout(t);
+    // Only filter changes announce; count changes from refetches stay silent.
+  }, [filters]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -237,6 +328,11 @@ export function BoardPage() {
     setMessage(`Moved ${label(moved)} to ${where}.`);
   }
 
+  const announceReorderBlocked = () =>
+    setMessage(
+      "Reordering is unavailable while filters are active. Clear filters to reorder, or drop on a column to change status.",
+    );
+
   function onDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
   }
@@ -247,6 +343,11 @@ export function BoardPage() {
     overId: string | number | undefined,
   ) {
     const action = resolveMultiDrop(boardCells, selectedIds, overId);
+    if (guardFilteredBoardAction(action, filtersActive) === "block-reorder") {
+      announceReorderBlocked();
+      setFocusId(anchor.id);
+      return;
+    }
     if (action.type === "none") {
       setFocusId(anchor.id);
       return;
@@ -271,6 +372,7 @@ export function BoardPage() {
       );
       setSelectedIds(new Set());
       setMessage(`Moved ${moved.length}, skipped ${skipped.length}`);
+      expandStatus(action.toStatus);
     } catch (err) {
       setMessage(
         `Could not move ${plural(action.ids.length)}: ${
@@ -302,6 +404,11 @@ export function BoardPage() {
     }
 
     const action = resolveDrop(cells, e.active.id, e.over?.id);
+    if (guardFilteredBoardAction(action, filtersActive) === "block-reorder") {
+      announceReorderBlocked();
+      setFocusId(moved.id);
+      return;
+    }
     if (action.type === "none") {
       setFocusId(moved.id);
       return;
@@ -317,6 +424,7 @@ export function BoardPage() {
     busy.current = true;
     try {
       await perform(action, moved);
+      if (action.type !== "reorder") expandStatus(action.status);
     } catch (err) {
       setMessage(
         `Could not move ${label(moved)}: ${
@@ -360,13 +468,17 @@ export function BoardPage() {
         {message}
       </div>
 
-      {board.isPending ? <p className="text-ink-muted">Loading…</p> : null}
+      {board.isPending ? <LoadingBlock label="Loading board…" /> : null}
       {board.isError ? (
-        <p className="text-status-rejected-ink" role="alert">
+        <InlineError>
           {board.error instanceof Error
             ? board.error.message
             : "Could not load board."}
-        </p>
+        </InlineError>
+      ) : null}
+
+      {board.data && board.data.items.length > 0 ? (
+        <BoardToolbar filters={filters} onChange={setFilters} />
       ) : null}
 
       {board.data && board.data.total > board.data.items.length ? (
@@ -379,7 +491,25 @@ export function BoardPage() {
         </Surface>
       ) : null}
 
-      {cells ? (
+      {board.data && board.data.items.length === 0 ? (
+        <EmptyState
+          title="No applications yet"
+          description="Create your first application to start tracking your search."
+          action={
+            <ButtonLink to="/applications/new">New application</ButtonLink>
+          }
+        />
+      ) : board.data && visibleCount === 0 ? (
+        <EmptyState
+          title="No matches"
+          description="No applications on the board match these filters."
+          action={
+            <Button type="button" variant="secondary" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : cells ? (
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetection}
@@ -403,6 +533,9 @@ export function BoardPage() {
                 reducedMotion={reducedMotion}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
+                filtered={filtersActive}
+                collapsed={collapsed.has(status)}
+                onToggleCollapse={toggleCollapse}
               />
             ))}
           </div>

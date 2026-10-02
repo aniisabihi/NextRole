@@ -4,9 +4,13 @@ import {
   cardId,
   cellId,
   columnId,
+  dragHandleLabel,
+  guardFilteredBoardAction,
   parseDndId,
   resolveDrop,
   resolveMultiDrop,
+  type DropAction,
+  type MultiDropAction,
 } from "./boardDnd";
 import type { Application } from "./types";
 
@@ -23,6 +27,7 @@ function app(
     boardOrder,
     company: id,
     title: id,
+    nextInterviewAt: null,
   } as Application;
 }
 
@@ -167,5 +172,61 @@ describe("resolveMultiDrop", () => {
     expect(resolveMultiDrop(cells, ["zzz"], columnId("OFFER"))).toEqual({
       type: "none",
     });
+  });
+});
+
+describe("guardFilteredBoardAction", () => {
+  const reorder: DropAction = {
+    type: "reorder",
+    status: "APPLIED",
+    priority: "HIGH",
+    orderedIds: ["b", "a", "c"],
+  };
+  const update: DropAction = { type: "update", id: "a", status: "OFFER" };
+  const bulk: MultiDropAction = {
+    type: "bulk",
+    ids: ["a", "b"],
+    toStatus: "OFFER",
+  };
+
+  it("blocks reorder when filtered", () => {
+    expect(guardFilteredBoardAction(reorder, true)).toBe("block-reorder");
+  });
+  it("allows reorder when unfiltered", () => {
+    expect(guardFilteredBoardAction(reorder, false)).toBe("allow");
+  });
+  it("allows update and bulk when filtered", () => {
+    expect(guardFilteredBoardAction(update, true)).toBe("allow");
+    expect(guardFilteredBoardAction(bulk, true)).toBe("allow");
+  });
+  it("allows none/rejected/unsupported when filtered", () => {
+    expect(guardFilteredBoardAction({ type: "none" }, true)).toBe("allow");
+    expect(
+      guardFilteredBoardAction(
+        { type: "rejected", from: "SAVED", to: "OFFER" },
+        true,
+      ),
+    ).toBe("allow");
+    expect(guardFilteredBoardAction({ type: "unsupported" }, true)).toBe(
+      "allow",
+    );
+  });
+});
+
+describe("dragHandleLabel", () => {
+  const a = {
+    ...app("x", "SAVED", "LOW", 0),
+    company: "Acme",
+    title: "Engineer",
+    nextInterviewAt: "2026-10-05T09:30:00.000Z",
+  } as Application;
+  it("uses company and title only", () => {
+    expect(dragHandleLabel(a, false)).toBe("Drag Acme, Engineer");
+  });
+  it("adds selected suffix", () => {
+    expect(dragHandleLabel(a, true)).toBe("Drag Acme, Engineer, selected");
+  });
+  it("never includes interview text", () => {
+    expect(dragHandleLabel(a, false)).not.toMatch(/interview|2026|Oct/i);
   });
 });
