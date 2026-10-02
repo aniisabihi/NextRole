@@ -10,6 +10,7 @@ import { formatReminderDue } from "../../lib/reminder-format";
 import type { Reminder, ReminderListResponse } from "../../lib/types";
 import { Button } from "../ui/Button";
 import { Field, TextInput, TextTextarea } from "../ui/Field";
+import { InlineError } from "../ui/InlineError";
 import { Surface } from "../ui/Surface";
 
 type Panel = "closed" | "create" | { edit: Reminder };
@@ -103,11 +104,7 @@ function ReminderForm({
           onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
         />
       </Field>
-      {shownError ? (
-        <p className="text-sm text-status-rejected-ink" role="alert">
-          {shownError}
-        </p>
-      ) : null}
+      {shownError ? <InlineError>{shownError}</InlineError> : null}
       <div className="flex flex-wrap gap-2">
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : submitLabel}
@@ -198,6 +195,13 @@ export function RemindersSection({ applicationId }: { applicationId: string }) {
     onError: (err) => setError(err instanceof Error ? err.message : "Failed"),
   });
 
+  function confirmRemove(id: string) {
+    if (remove.isPending) return;
+    if (!window.confirm("Delete this reminder? This cannot be undone.")) return;
+    setError(null);
+    remove.mutate(id);
+  }
+
   const items = (query.data?.items ?? []).filter(isOpen);
   const busy = dismiss.isPending || remove.isPending;
 
@@ -235,15 +239,15 @@ export function RemindersSection({ applicationId }: { applicationId: string }) {
       {query.isLoading ? (
         <p className="text-sm text-ink-muted">Loading reminders…</p>
       ) : query.isError ? (
-        <p className="text-sm text-status-rejected-ink">
-          Could not load reminders.
-        </p>
+        <InlineError>Could not load reminders.</InlineError>
       ) : items.length === 0 ? (
         <p className="text-sm text-ink-muted">No open reminders.</p>
       ) : (
         <ul className="flex flex-col gap-3">
           {items.map((r) => {
             const editing = typeof panel === "object" && panel.edit.id === r.id;
+            // Edit only MANUAL + SCHEDULED; DUE rows never get an edit form.
+            // API enforces the same (and future-only dueAt) on PATCH.
             const canEdit = r.kind === "MANUAL" && r.status === "SCHEDULED";
             return (
               <li
@@ -304,7 +308,7 @@ export function RemindersSection({ applicationId }: { applicationId: string }) {
                           variant="ghost"
                           disabled={busy}
                           aria-label={`Delete reminder: ${r.title}`}
-                          onClick={() => remove.mutate(r.id)}
+                          onClick={() => confirmRemove(r.id)}
                         >
                           Delete
                         </Button>
@@ -317,11 +321,7 @@ export function RemindersSection({ applicationId }: { applicationId: string }) {
           })}
         </ul>
       )}
-      {error && panel === "closed" ? (
-        <p className="text-sm text-status-rejected-ink" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {error && panel === "closed" ? <InlineError>{error}</InlineError> : null}
     </Surface>
   );
 }

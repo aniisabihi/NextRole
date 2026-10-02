@@ -10,6 +10,7 @@ import {
 } from "../../lib/types";
 import { Button } from "../ui/Button";
 import { Field, TextInput } from "../ui/Field";
+import { InlineError } from "../ui/InlineError";
 import { Modal } from "../ui/Modal";
 
 function PrefsForm({
@@ -109,11 +110,7 @@ function PrefsForm({
           onChange={(e) => setFollowUpDays(e.target.value)}
         />
       </Field>
-      {error ? (
-        <p className="text-sm text-status-rejected-ink" role="alert">
-          {error}
-        </p>
-      ) : null}
+      {error ? <InlineError>{error}</InlineError> : null}
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="secondary" onClick={onClose}>
           Cancel
@@ -147,9 +144,7 @@ export function ReminderPrefsModal({
       {prefsQuery.isPending ? (
         <p className="text-sm text-ink-muted">Loading…</p>
       ) : prefsQuery.isError ? (
-        <p className="text-sm text-status-rejected-ink" role="alert">
-          Could not load settings.
-        </p>
+        <InlineError>Could not load settings.</InlineError>
       ) : (
         <PrefsForm prefs={prefsQuery.data} onClose={onClose} />
       )}

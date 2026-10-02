@@ -9,6 +9,7 @@ import {
 } from "../../lib/reminder-badge";
 import { formatReminderDue } from "../../lib/reminder-format";
 import type { Reminder, ReminderListResponse } from "../../lib/types";
+import { InlineError } from "../ui/InlineError";
 import { ReminderPrefsModal } from "./ReminderPrefsModal";
 
 const SCHEDULED_PREVIEW = 3;
@@ -21,6 +22,12 @@ export function ReminderBell() {
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
+  const dismissRefs = useRef(new Map<string, HTMLButtonElement>());
+  const prevDueCount = useRef<number | null>(null);
+  const [focusTargetId, setFocusTargetId] = useState<string | null | undefined>(
+    undefined,
+  );
+  const [liveText, setLiveText] = useState("");
 
   const query = useQuery({
     queryKey: ["reminders"],
@@ -40,6 +47,28 @@ export function ReminderBell() {
   const dueCount = dueBadgeCount(items);
   const badge = badgeText(dueCount);
 
+  // Live region: announce only when the due count changes after the first load.
+  useEffect(() => {
+    if (!query.isSuccess) return;
+    const prev = prevDueCount.current;
+    prevDueCount.current = dueCount;
+    if (prev === null || prev === dueCount) return;
+    setLiveText(
+      dueCount === 0
+        ? "No reminders due"
+        : `${dueCount} ${dueCount === 1 ? "reminder" : "reminders"} due`,
+    );
+  }, [dueCount, query.isSuccess]);
+
+  // Move focus after a dismiss re-render: next due row, else the bell toggle.
+  useEffect(() => {
+    if (focusTargetId === undefined) return;
+    const el = focusTargetId ? dismissRefs.current.get(focusTargetId) : null;
+    if (focusTargetId && !el) return; // row not rendered yet; effect re-runs on items change
+    (el ?? buttonRef.current)?.focus();
+    setFocusTargetId(undefined);
+  }, [focusTargetId, items]);
+
   const dismiss = useMutation({
     mutationFn: (id: string) =>
       apiClient<Reminder>(`/api/reminders/${id}`, {
@@ -49,6 +78,8 @@ export function ReminderBell() {
       }),
     onSuccess: async (_data, id) => {
       const reminder = items.find((r) => r.id === id);
+      const dueIdsBefore = due.map((r) => r.id);
+      const dismissedIndex = Math.max(dueIdsBefore.indexOf(id), 0);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reminders"] }),
         reminder
@@ -57,6 +88,13 @@ export function ReminderBell() {
             })
           : Promise.resolve(),
       ]);
+      const fresh =
+        queryClient.getQueryData<ReminderListResponse>(["reminders"])?.items ??
+        [];
+      const remainingDue = fresh.filter((r) => r.status === "DUE");
+      const next =
+        remainingDue[Math.min(dismissedIndex, remainingDue.length - 1)];
+      setFocusTargetId(next ? next.id : null);
     },
   });
 
@@ -106,6 +144,10 @@ export function ReminderBell() {
         </Link>
         <button
           type="button"
+          ref={(el) => {
+            if (el) dismissRefs.current.set(r.id, el);
+            else dismissRefs.current.delete(r.id);
+          }}
           onClick={() => dismiss.mutate(r.id)}
           disabled={dismiss.isPending}
           aria-label={`Dismiss reminder: ${r.title}`}
@@ -151,6 +193,9 @@ export function ReminderBell() {
           </span>
         ) : null}
       </button>
+      <span aria-live="polite" role="status" className="sr-only">
+        {liveText}
+      </span>
 
       {open ? (
         <div
@@ -162,9 +207,9 @@ export function ReminderBell() {
           {query.isPending ? (
             <p className="px-4 py-3 text-sm text-ink-muted">Loading…</p>
           ) : query.isError ? (
-            <p className="px-4 py-3 text-sm text-status-rejected-ink">
-              Could not load reminders.
-            </p>
+            <div className="px-3 py-3">
+              <InlineError>Could not load reminders.</InlineError>
+            </div>
           ) : due.length === 0 && scheduled.length === 0 ? (
             <p className="px-4 py-3 text-sm text-ink-muted">
               No reminders yet.
@@ -189,6 +234,15 @@ export function ReminderBell() {
               ) : null}
             </div>
           )}
+          {dismiss.isError ? (
+            <div className="border-t border-border/70 px-3 py-2">
+              <InlineError>
+                {dismiss.error instanceof Error
+                  ? dismiss.error.message
+                  : "Could not dismiss reminder."}
+              </InlineError>
+            </div>
+          ) : null}
           <div className="border-t border-border/70 px-3 py-2">
             <button
               type="button"
