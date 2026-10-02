@@ -174,3 +174,15 @@ export function resolveMultiDrop(
   }
   return { type: "bulk", ids: selected.map((a) => a.id), toStatus };
 }
+
+/**
+ * While board filters are active the visible cell lists are partial, but the
+ * reorder API needs the full cell's `orderedIds`. Block reorder only; status/
+ * priority updates and bulk status moves stay allowed.
+ */
+export function guardFilteredBoardAction(
+  action: DropAction | MultiDropAction,
+  filtersActive: boolean,
+): "allow" | "block-reorder" {
+  return filtersActive && action.type === "reorder" ? "block-reorder" : "allow";
+}

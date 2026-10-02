@@ -17,19 +17,28 @@ import {
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { AppShell } from "../components/AppShell";
 import { Button } from "../components/ui/Button";
+import { InlineError } from "../components/ui/InlineError";
+import { LoadingBlock } from "../components/ui/LoadingBlock";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
 import { BoardCardBody } from "../components/board/BoardCard";
 import { BoardColumn } from "../components/board/BoardColumn";
+import { BoardToolbar } from "../components/board/BoardToolbar";
 import { apiClient } from "../lib/apiClient";
 import { groupForBoard } from "../lib/board";
 import {
   findCard,
+  guardFilteredBoardAction,
   parseDndId,
   resolveDrop,
   resolveMultiDrop,
   type DropAction,
 } from "../lib/boardDnd";
+import {
+  filterApplicationsForBoard,
+  hasActiveBoardFilters,
+  type BoardFilters,
+} from "../lib/boardFilter";
 import { useReducedMotion } from "../lib/useReducedMotion";
 import {
   APPLICATION_STATUSES,
@@ -76,10 +85,39 @@ export function BoardPage() {
     queryFn: () => apiClient<ApplicationListResponse>(BOARD_PATH),
   });
 
-  const cells = useMemo(
-    () => (board.data ? groupForBoard(board.data.items) : null),
-    [board.data],
+  const [filters, setFilters] = useState<BoardFilters>({
+    priorities: [],
+    upcomingInterviewOnly: false,
+  });
+  const filtersActive = hasActiveBoardFilters(filters);
+
+  const allItems = board.data?.items;
+  const fullCells = useMemo(
+    () => (allItems ? groupForBoard(allItems) : null),
+    [allItems],
   );
+  const visibleItems = useMemo(
+    () =>
+      allItems
+        ? filtersActive
+          ? filterApplicationsForBoard(allItems, filters)
+          : allItems
+        : null,
+    [allItems, filters, filtersActive],
+  );
+  const visibleCells = useMemo(
+    () =>
+      !visibleItems
+        ? null
+        : visibleItems === allItems
+          ? fullCells
+          : groupForBoard(visibleItems),
+    [visibleItems, allItems, fullCells],
+  );
+  // Rendered + drag-resolved cells. Unfiltered: identical to fullCells (reorder
+  // safe, complete orderedIds). Filtered: visible subset; reorder blocked below.
+  const cells = visibleCells;
+  const visibleCount = visibleItems?.length ?? 0;
 
   const [message, setMessage] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -118,12 +156,28 @@ export function BoardPage() {
     return () => document.removeEventListener("keydown", onKeyDown);
   }, [selectedIds, activeId]);
 
-  // Drop selected ids that no longer exist on the board (deleted, paged out).
+  // Drop selected ids not visible on the board (deleted, paged out, filtered out).
   useEffect(() => {
     if (!cells || selectedIds.size === 0) return;
     const live = [...selectedIds].filter((id) => findCard(cells, id));
     if (live.length !== selectedIds.size) setSelectedIds(new Set(live));
   }, [cells, selectedIds]);
+
+  // Announce filtered count after filter changes (debounced; reuses polite region).
+  const filterAnnounced = useRef(false);
+  useEffect(() => {
+    if (!filterAnnounced.current) {
+      filterAnnounced.current = true;
+      return;
+    }
+    const t = setTimeout(
+      () => setMessage(`Showing ${plural(visibleCount)}`),
+      150,
+    );
+    return () => clearTimeout(t);
+    // Only filter changes announce; count changes from refetches stay silent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -237,6 +291,11 @@ export function BoardPage() {
     setMessage(`Moved ${label(moved)} to ${where}.`);
   }
 
+  const announceReorderBlocked = () =>
+    setMessage(
+      "Reordering is unavailable while filters are active. Clear filters to reorder, or drop on a column to change status.",
+    );
+
   function onDragStart(e: DragStartEvent) {
     setActiveId(String(e.active.id));
   }
@@ -247,6 +306,11 @@ export function BoardPage() {
     overId: string | number | undefined,
   ) {
     const action = resolveMultiDrop(boardCells, selectedIds, overId);
+    if (guardFilteredBoardAction(action, filtersActive) === "block-reorder") {
+      announceReorderBlocked();
+      setFocusId(anchor.id);
+      return;
+    }
     if (action.type === "none") {
       setFocusId(anchor.id);
       return;
@@ -302,6 +366,11 @@ export function BoardPage() {
     }
 
     const action = resolveDrop(cells, e.active.id, e.over?.id);
+    if (guardFilteredBoardAction(action, filtersActive) === "block-reorder") {
+      announceReorderBlocked();
+      setFocusId(moved.id);
+      return;
+    }
     if (action.type === "none") {
       setFocusId(moved.id);
       return;
@@ -360,13 +429,17 @@ export function BoardPage() {
         {message}
       </div>
 
-      {board.isPending ? <p className="text-ink-muted">Loading…</p> : null}
+      {board.isPending ? <LoadingBlock label="Loading board…" /> : null}
       {board.isError ? (
-        <p className="text-status-rejected-ink" role="alert">
+        <InlineError>
           {board.error instanceof Error
             ? board.error.message
             : "Could not load board."}
-        </p>
+        </InlineError>
+      ) : null}
+
+      {board.data ? (
+        <BoardToolbar filters={filters} onChange={setFilters} />
       ) : null}
 
       {board.data && board.data.total > board.data.items.length ? (
@@ -403,6 +476,7 @@ export function BoardPage() {
                 reducedMotion={reducedMotion}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
+                filtered={filtersActive}
               />
             ))}
           </div>

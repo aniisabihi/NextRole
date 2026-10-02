@@ -16,6 +16,7 @@ export function BoardCell({
   reducedMotion,
   selectedIds,
   onToggleSelect,
+  filtered = false,
 }: {
   status: ApplicationStatus;
   priority: Priority;
@@ -23,6 +24,8 @@ export function BoardCell({
   reducedMotion: boolean;
   selectedIds: ReadonlySet<string>;
   onToggleSelect: (id: string) => void;
+  /** Board filters active: empty lane means no matches, not no data. */
+  filtered?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: cellId(status, priority),
@@ -51,7 +54,7 @@ export function BoardCell({
         >
           {items.length === 0 ? (
             <li className="flex min-h-11 items-center px-1 text-xs text-ink-faint">
-              No applications
+              {filtered ? "No matching applications" : "No applications"}
             </li>
           ) : (
             items.map((app) => (
