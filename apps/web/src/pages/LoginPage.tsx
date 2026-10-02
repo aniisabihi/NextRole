@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { Field, TextInput } from "../components/ui/Field";
+import { InlineError } from "../components/ui/InlineError";
 import { Surface } from "../components/ui/Surface";
 import { apiClient } from "../lib/apiClient";
 import type { AuthResponse } from "../lib/types";
@@ -69,12 +70,8 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
             />
           </Field>
-          {error ? (
-            <p className="text-sm text-status-rejected-ink" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <Button type="submit" disabled={submitting}>
+          {error ? <InlineError>{error}</InlineError> : null}
+          <Button type="submit" loading={submitting}>
             {submitting ? "Signing in…" : "Sign in"}
           </Button>
           <p className="text-center text-sm text-ink-muted">
