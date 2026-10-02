@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { authGuard } from "../../shared/middleware/auth-guard.js";
 import { parseBody, parseQuery } from "../../shared/validation/parse.js";
 import * as applicationsService from "./applications.service.js";
+import { attachNextInterviewAt } from "./next-interview.js";
 import {
   boardBulkStatusSchema,
   boardReorderSchema,
@@ -14,7 +15,9 @@ export async function applicationsRoutes(app: FastifyInstance): Promise<void> {
   app.get("/", { preHandler: [authGuard] }, async (request) => {
     const userId = request.userId!;
     const query = parseQuery(listApplicationsQuerySchema, request.query);
-    return applicationsService.listApplications(userId, query);
+    const result = await applicationsService.listApplications(userId, query);
+    const items = await attachNextInterviewAt(result.items);
+    return { ...result, items };
   });
 
   app.post("/", { preHandler: [authGuard] }, async (request, reply) => {
@@ -24,7 +27,8 @@ export async function applicationsRoutes(app: FastifyInstance): Promise<void> {
       userId,
       body,
     );
-    return reply.status(201).send({ application });
+    const [enriched] = await attachNextInterviewAt([application]);
+    return reply.status(201).send({ application: enriched });
   });
 
   app.post("/board/reorder", { preHandler: [authGuard] }, async (request) => {
@@ -39,14 +43,17 @@ export async function applicationsRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       const userId = request.userId!;
       const body = parseBody(boardBulkStatusSchema, request.body);
-      return applicationsService.bulkUpdateStatus(userId, body);
+      const result = await applicationsService.bulkUpdateStatus(userId, body);
+      const moved = await attachNextInterviewAt(result.moved);
+      return { ...result, moved };
     },
   );
 
   app.get("/:id", { preHandler: [authGuard] }, async (request) => {
     const userId = request.userId!;
     const { id } = request.params as { id: string };
-    const application = await applicationsService.getApplication(userId, id);
+    const found = await applicationsService.getApplication(userId, id);
+    const [application] = await attachNextInterviewAt([found]);
     return { application };
   });
 
@@ -54,11 +61,12 @@ export async function applicationsRoutes(app: FastifyInstance): Promise<void> {
     const userId = request.userId!;
     const { id } = request.params as { id: string };
     const patch = parseBody(updateApplicationSchema, request.body);
-    const application = await applicationsService.updateApplication(
+    const updated = await applicationsService.updateApplication(
       userId,
       id,
       patch,
     );
+    const [application] = await attachNextInterviewAt([updated]);
     return { application };
   });
 

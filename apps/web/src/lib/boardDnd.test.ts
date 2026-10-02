@@ -23,6 +23,7 @@ function app(
     boardOrder,
     company: id,
     title: id,
+    nextInterviewAt: null,
   } as Application;
 }
 

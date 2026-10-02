@@ -457,6 +457,7 @@ describe("applications HTTP: board order", () => {
       const body = res.json();
       expect(body.moved.map((m: { id: string }) => m.id)).toEqual([a.id]);
       expect(body.moved[0].status).toBe("APPLIED");
+      expect(body.moved[0]).toHaveProperty("nextInterviewAt", null);
       expect(body.skipped).toEqual([
         {
           id: b.id,
