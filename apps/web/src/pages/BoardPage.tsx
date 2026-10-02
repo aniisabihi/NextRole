@@ -176,7 +176,6 @@ export function BoardPage() {
     );
     return () => clearTimeout(t);
     // Only filter changes announce; count changes from refetches stay silent.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const sensors = useSensors(
