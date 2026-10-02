@@ -12,6 +12,10 @@ export async function originPreHandler(request: FastifyRequest): Promise<void> {
   const origin = request.headers.origin;
   const allowlist = parseCorsOrigins(loadEnv().CORS_ORIGIN);
   if (typeof origin !== "string" || !allowlist.includes(origin)) {
-    throw new AppError("FORBIDDEN_ORIGIN", 403, "Forbidden origin");
+    throw new AppError(
+      "FORBIDDEN_ORIGIN",
+      403,
+      "This request isn’t allowed from your browser.",
+    );
   }
 }

@@ -27,6 +27,9 @@ type ReminderWithApp = Reminder & {
   application?: { id: string; company: string; title: string };
 };
 
+/** Soft cap on open MANUAL reminders per application (SCHEDULED + DUE). */
+export const MANUAL_REMINDER_CAP = 25;
+
 export function toReminderDto(r: ReminderWithApp): ReminderDto {
   return {
     id: r.id,
@@ -45,7 +48,7 @@ export function toReminderDto(r: ReminderWithApp): ReminderDto {
 
 async function findOwned(userId: string, id: string): Promise<Reminder> {
   const row = await prisma.reminder.findFirst({ where: { id, userId } });
-  if (!row) throw new AppError("NOT_FOUND", 404, "Reminder not found");
+  if (!row) throw new AppError("NOT_FOUND", 404, "Reminder not found.");
   return row;
 }
 
@@ -80,6 +83,21 @@ export async function createManualReminder(
   input: CreateManualReminderBody,
 ): Promise<ReminderDto> {
   await getApplication(userId, applicationId);
+  const openCount = await prisma.reminder.count({
+    where: {
+      userId,
+      applicationId,
+      kind: "MANUAL",
+      status: { in: ["SCHEDULED", "DUE"] },
+    },
+  });
+  if (openCount >= MANUAL_REMINDER_CAP) {
+    throw new AppError(
+      "REMINDER_LIMIT_EXCEEDED",
+      400,
+      `You can have at most ${MANUAL_REMINDER_CAP} open custom reminders on this application.`,
+    );
+  }
   const created = await prisma.reminder.create({
     data: {
       userId,
@@ -157,14 +175,14 @@ export async function updateReminder(
     throw new AppError(
       "VALIDATION_ERROR",
       400,
-      "Only MANUAL reminders can be edited; dismiss instead",
+      "Only reminders you created can be edited. Dismiss automatic ones instead.",
     );
   }
   if (existing.status !== "SCHEDULED") {
     throw new AppError(
       "VALIDATION_ERROR",
       400,
-      "Only SCHEDULED reminders can be edited",
+      "Only upcoming reminders can be edited.",
     );
   }
 
@@ -181,7 +199,7 @@ export async function updateReminder(
     throw new AppError(
       "VALIDATION_ERROR",
       400,
-      "Reminder is no longer editable",
+      "This reminder can’t be edited anymore.",
     );
   }
   const updated = await prisma.reminder.findUniqueOrThrow({ where: { id } });
@@ -200,7 +218,7 @@ export async function deleteReminder(
     throw new AppError(
       "VALIDATION_ERROR",
       400,
-      "Only MANUAL reminders can be deleted; dismiss instead",
+      "Only reminders you created can be deleted. Dismiss automatic ones instead.",
     );
   }
   if (existing.status === "CANCELLED") return;

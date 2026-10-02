@@ -21,7 +21,7 @@ export async function getMe(userId: string): Promise<UserDto> {
   });
 
   if (!user) {
-    throw new AppError("UNAUTHORIZED", 401, "Unauthorized");
+    throw new AppError("UNAUTHORIZED", 401, "Please sign in to continue.");
   }
 
   return toUserDto(user);
@@ -36,7 +36,7 @@ export async function getReminderPrefs(
     where: { id: userId },
     select: prefsSelect,
   });
-  if (!user) throw new AppError("UNAUTHORIZED", 401, "Unauthorized");
+  if (!user) throw new AppError("UNAUTHORIZED", 401, "Please sign in to continue.");
   return user;
 }
 
@@ -54,7 +54,7 @@ export async function updateReminderPrefs(
       where: { id: userId },
       select: prefsSelect,
     });
-    if (!current) throw new AppError("UNAUTHORIZED", 401, "Unauthorized");
+    if (!current) throw new AppError("UNAUTHORIZED", 401, "Please sign in to continue.");
 
     const changed: UpdateReminderPrefsBody = {};
     if (

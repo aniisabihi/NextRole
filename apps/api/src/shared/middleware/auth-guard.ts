@@ -11,13 +11,13 @@ declare module "fastify" {
 export async function authGuard(request: FastifyRequest): Promise<void> {
   const token = request.cookies.access_token;
   if (!token) {
-    throw new AppError("UNAUTHORIZED", 401, "Unauthorized");
+    throw new AppError("UNAUTHORIZED", 401, "Please sign in to continue.");
   }
 
   try {
     const { sub } = await verifyAccessToken(token);
     request.userId = sub;
   } catch {
-    throw new AppError("UNAUTHORIZED", 401, "Unauthorized");
+    throw new AppError("UNAUTHORIZED", 401, "Please sign in to continue.");
   }
 }

@@ -61,14 +61,20 @@ export async function enqueueReminder(
   if (reminder.bullJobId) await removeReminderJob(reminder.bullJobId);
   if (reminder.bullJobId !== jobId) await removeReminderJob(jobId);
   const delay = Math.max(0, reminder.dueAt.getTime() - now.getTime());
-  await withTimeout(
-    getReminderQueue().add(
-      "fire",
-      { reminderId: reminder.id } satisfies ReminderJobData,
-      { jobId, delay, removeOnComplete: true, removeOnFail: true },
-    ),
-    "queue.add",
-  );
+  try {
+    await withTimeout(
+      getReminderQueue().add(
+        "fire",
+        { reminderId: reminder.id } satisfies ReminderJobData,
+        { jobId, delay, removeOnComplete: true, removeOnFail: true },
+      ),
+      "queue.add",
+    );
+  } catch (err) {
+    // Active/locked job with same id cannot be removed+re-added; treat as scheduled.
+    if (await reminderJobExists(jobId)) return jobId;
+    throw err;
+  }
   return jobId;
 }
 

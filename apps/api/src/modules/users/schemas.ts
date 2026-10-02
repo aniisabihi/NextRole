@@ -7,7 +7,7 @@ export const updateReminderPrefsSchema = z
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, {
-    message: "At least one field is required",
+    message: "Include at least one field to update.",
   });
 
 export type UpdateReminderPrefsBody = z.infer<typeof updateReminderPrefsSchema>;

@@ -197,13 +197,13 @@ export async function rotateSession(
   );
 
   if (outcome.kind === "unauthorized") {
-    throw new AppError("UNAUTHORIZED", 401, "Unauthorized");
+    throw new AppError("UNAUTHORIZED", 401, "Please sign in to continue.");
   }
   if (outcome.kind === "reuse") {
     throw new AppError(
       "AUTH_REUSE_DETECTED",
       401,
-      "Refresh token reuse detected",
+      "Your session was ended for security. Please sign in again.",
     );
   }
   return { raw: outcome.raw, userId: outcome.userId };

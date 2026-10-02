@@ -10,7 +10,7 @@ import { LoadingBlock } from "../components/ui/LoadingBlock";
 import { PageHeader } from "../components/ui/PageHeader";
 import { PriorityChip, StatusChip } from "../components/ui/StatusChip";
 import { Surface } from "../components/ui/Surface";
-import { apiClient } from "../lib/apiClient";
+import { apiClient, userErrorMessage } from "../lib/apiClient";
 import { STATUS_EDGE } from "../lib/statusColors";
 import {
   employmentTypeLabel,
@@ -198,9 +198,10 @@ export function ApplicationsPage() {
       {list.isPending ? <LoadingBlock label="Loading applications…" /> : null}
       {list.isError ? (
         <InlineError>
-          {list.error instanceof Error
-            ? list.error.message
-            : "Could not load applications."}
+          {userErrorMessage(
+            list.error,
+            "Couldn’t load applications. Please try again.",
+          )}
         </InlineError>
       ) : null}
 

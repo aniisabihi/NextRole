@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "../components/AppShell";
 import { Button, ButtonLink } from "../components/ui/Button";
 import {
@@ -11,7 +12,7 @@ import {
 import { InlineError } from "../components/ui/InlineError";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
-import { apiClient } from "../lib/apiClient";
+import { apiClient, userErrorMessage } from "../lib/apiClient";
 import {
   employmentTypeLabel,
   priorityLabel,
@@ -30,6 +31,7 @@ import {
 
 export function ApplicationNewPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [company, setCompany] = useState("");
   const [title, setTitle] = useState("");
   const [location, setLocation] = useState("");
@@ -84,9 +86,15 @@ export function ApplicationNewPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["applications"] }),
+        queryClient.invalidateQueries({ queryKey: ["dashboard"] }),
+      ]);
       navigate(`/applications/${res.application.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Create failed");
+      setError(
+        userErrorMessage(err, "Couldn’t create the application. Please try again."),
+      );
     } finally {
       setSubmitting(false);
     }

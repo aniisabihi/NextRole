@@ -25,7 +25,7 @@ import type {
   ListApplicationsQuery,
   UpdateApplicationBody,
 } from "./schemas.js";
-import { nextBoardOrderInCell } from "./board-order.js";
+import { nextBoardOrderInCell, lockBoardCell } from "./board-order.js";
 import { assertTransition } from "./status-transitions.js";
 
 const PRIORITY_RANK: Record<Priority, number> = {
@@ -110,7 +110,7 @@ export async function getApplication(
     where: { id, userId },
   });
   if (!application) {
-    throw new AppError("NOT_FOUND", 404, "Application not found");
+    throw new AppError("NOT_FOUND", 404, "Application not found.");
   }
   return application;
 }
@@ -169,7 +169,7 @@ export async function updateApplication(
     where: { id, userId },
   });
   if (!existing) {
-    throw new AppError("NOT_FOUND", 404, "Application not found");
+    throw new AppError("NOT_FOUND", 404, "Application not found.");
   }
 
   const data: Prisma.ApplicationUpdateInput = {};
@@ -277,20 +277,22 @@ export async function deleteApplication(
   userId: string,
   id: string,
 ): Promise<void> {
-  const existing = await prisma.application.findFirst({
-    where: { id, userId },
-    select: { id: true },
-  });
-  if (!existing) {
-    throw new AppError("NOT_FOUND", 404, "Application not found");
-  }
-
   // Collect pending jobs before the cascade wipes the rows; clean up post-commit.
   const pending = await prisma.reminder.findMany({
-    where: { applicationId: id, status: "SCHEDULED", bullJobId: { not: null } },
+    where: {
+      applicationId: id,
+      userId,
+      status: "SCHEDULED",
+      bullJobId: { not: null },
+    },
     select: { bullJobId: true },
   });
-  await prisma.application.delete({ where: { id } });
+  const deleted = await prisma.application.deleteMany({
+    where: { id, userId },
+  });
+  if (deleted.count === 0) {
+    throw new AppError("NOT_FOUND", 404, "Application not found.");
+  }
   await safeRemoveJobs(pending.map((r) => r.bullJobId));
 }
 
@@ -300,10 +302,15 @@ export async function reorderBoardCell(
 ): Promise<{ ok: true }> {
   const unique = new Set(input.orderedIds);
   if (unique.size !== input.orderedIds.length) {
-    throw new AppError("VALIDATION_ERROR", 400, "orderedIds must be unique");
+    throw new AppError(
+      "VALIDATION_ERROR",
+      400,
+      "The board order list is invalid. Refresh and try again.",
+    );
   }
 
   return prisma.$transaction(async (tx) => {
+    await lockBoardCell(tx, userId, input.status, input.priority);
     const cell = await tx.application.findMany({
       where: {
         userId,
@@ -320,15 +327,27 @@ export async function reorderBoardCell(
       throw new AppError(
         "VALIDATION_ERROR",
         400,
-        "orderedIds must match cell membership",
+        "The board changed. Refresh and try again.",
       );
     }
 
     for (let i = 0; i < input.orderedIds.length; i++) {
-      await tx.application.update({
-        where: { id: input.orderedIds[i]! },
+      const res = await tx.application.updateMany({
+        where: {
+          id: input.orderedIds[i]!,
+          userId,
+          status: input.status,
+          priority: input.priority,
+        },
         data: { boardOrder: i },
       });
+      if (res.count !== 1) {
+        throw new AppError(
+          "CONFLICT",
+          409,
+          "The board changed. Refresh and try again.",
+        );
+      }
     }
     return { ok: true as const };
   });
@@ -360,7 +379,7 @@ export async function bulkUpdateStatus(
       skipped.push({
         id,
         code: "NOT_FOUND",
-        message: "Application not found",
+        message: "Application not found.",
       });
       continue;
     }
@@ -368,7 +387,7 @@ export async function bulkUpdateStatus(
       skipped.push({
         id,
         code: "ALREADY_IN_STATUS",
-        message: "Already in target status",
+        message: "Already in that status.",
       });
       continue;
     }

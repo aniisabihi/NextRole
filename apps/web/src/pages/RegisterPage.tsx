@@ -4,7 +4,8 @@ import { Button } from "../components/ui/Button";
 import { Field, TextInput } from "../components/ui/Field";
 import { InlineError } from "../components/ui/InlineError";
 import { Surface } from "../components/ui/Surface";
-import { apiClient } from "../lib/apiClient";
+import { apiClient, userErrorMessage } from "../lib/apiClient";
+import { ensureCsrfCookie, getCsrfToken } from "../lib/csrf";
 import type { AuthResponse } from "../lib/types";
 
 export function RegisterPage() {
@@ -14,9 +15,16 @@ export function RegisterPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [csrfReady, setCsrfReady] = useState(() => Boolean(getCsrfToken()));
 
   useEffect(() => {
-    void fetch("/api/auth/csrf", { credentials: "include" });
+    let cancelled = false;
+    void ensureCsrfCookie().then(() => {
+      if (!cancelled) setCsrfReady(Boolean(getCsrfToken()));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function onSubmit(e: FormEvent) {
@@ -24,6 +32,7 @@ export function RegisterPage() {
     setError(null);
     setSubmitting(true);
     try {
+      await ensureCsrfCookie();
       await apiClient<AuthResponse>("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -35,7 +44,9 @@ export function RegisterPage() {
       });
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed");
+      setError(
+        userErrorMessage(err, "Couldn’t create your account. Please try again."),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -84,7 +95,7 @@ export function RegisterPage() {
             />
           </Field>
           {error ? <InlineError>{error}</InlineError> : null}
-          <Button type="submit" loading={submitting}>
+          <Button type="submit" loading={submitting} disabled={!csrfReady}>
             {submitting ? "Creating…" : "Create account"}
           </Button>
           <p className="text-center text-sm text-ink-muted">

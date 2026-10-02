@@ -25,7 +25,7 @@ import { Surface } from "../components/ui/Surface";
 import { BoardCardBody } from "../components/board/BoardCard";
 import { BoardColumn } from "../components/board/BoardColumn";
 import { BoardToolbar } from "../components/board/BoardToolbar";
-import { apiClient } from "../lib/apiClient";
+import { apiClient, userErrorMessage } from "../lib/apiClient";
 import { groupForBoard } from "../lib/board";
 import {
   findCard,
@@ -45,6 +45,7 @@ import {
   toggleCollapsedStatus,
   writeCollapsedStatuses,
 } from "../lib/boardCollapse";
+import { statusLabel } from "../lib/labels";
 import { useReducedMotion } from "../lib/useReducedMotion";
 import {
   APPLICATION_STATUSES,
@@ -97,6 +98,9 @@ export function BoardPage() {
     upcomingInterviewOnly: false,
   });
   const filtersActive = hasActiveBoardFilters(filters);
+  const boardTruncated = Boolean(
+    board.data && board.data.total > board.data.items.length,
+  );
   const clearFilters = () =>
     setFilters({ priorities: [], upcomingInterviewOnly: false });
 
@@ -330,7 +334,9 @@ export function BoardPage() {
 
   const announceReorderBlocked = () =>
     setMessage(
-      "Reordering is unavailable while filters are active. Clear filters to reorder, or drop on a column to change status.",
+      boardTruncated
+        ? "Reordering is unavailable while the board is truncated. Narrow filters or reduce applications below the page limit."
+        : "Reordering is unavailable while filters are active. Clear filters to reorder, or drop on a column to change status.",
     );
 
   function onDragStart(e: DragStartEvent) {
@@ -343,7 +349,10 @@ export function BoardPage() {
     overId: string | number | undefined,
   ) {
     const action = resolveMultiDrop(boardCells, selectedIds, overId);
-    if (guardFilteredBoardAction(action, filtersActive) === "block-reorder") {
+    if (
+      guardFilteredBoardAction(action, filtersActive, boardTruncated) ===
+      "block-reorder"
+    ) {
       announceReorderBlocked();
       setFocusId(anchor.id);
       return;
@@ -375,13 +384,17 @@ export function BoardPage() {
       expandStatus(action.toStatus);
     } catch (err) {
       setMessage(
-        `Could not move ${plural(action.ids.length)}: ${
-          err instanceof Error ? err.message : "unknown error"
-        }`,
+        `Could not move ${plural(action.ids.length)}: ${userErrorMessage(
+          err,
+          "Something went wrong. Please try again.",
+        )}`,
       );
     } finally {
-      busy.current = false;
-      await refresh(anchor.id);
+      try {
+        await refresh(anchor.id);
+      } finally {
+        busy.current = false;
+      }
     }
   }
 
@@ -404,7 +417,10 @@ export function BoardPage() {
     }
 
     const action = resolveDrop(cells, e.active.id, e.over?.id);
-    if (guardFilteredBoardAction(action, filtersActive) === "block-reorder") {
+    if (
+      guardFilteredBoardAction(action, filtersActive, boardTruncated) ===
+      "block-reorder"
+    ) {
       announceReorderBlocked();
       setFocusId(moved.id);
       return;
@@ -415,7 +431,7 @@ export function BoardPage() {
     }
     if (action.type === "rejected") {
       setMessage(
-        `Cannot move ${label(moved)} from ${action.from} to ${action.to}: transition not allowed.`,
+        `Cannot move ${label(moved)} from ${statusLabel(action.from)} to ${statusLabel(action.to)}: that status change isn’t allowed.`,
       );
       setFocusId(moved.id);
       return;
@@ -427,13 +443,17 @@ export function BoardPage() {
       if (action.type !== "reorder") expandStatus(action.status);
     } catch (err) {
       setMessage(
-        `Could not move ${label(moved)}: ${
-          err instanceof Error ? err.message : "unknown error"
-        }`,
+        `Could not move ${label(moved)}: ${userErrorMessage(
+          err,
+          "Something went wrong. Please try again.",
+        )}`,
       );
     } finally {
-      busy.current = false;
-      await refresh(moved.id);
+      try {
+        await refresh(moved.id);
+      } finally {
+        busy.current = false;
+      }
     }
   }
 
@@ -471,9 +491,10 @@ export function BoardPage() {
       {board.isPending ? <LoadingBlock label="Loading board…" /> : null}
       {board.isError ? (
         <InlineError>
-          {board.error instanceof Error
-            ? board.error.message
-            : "Could not load board."}
+          {userErrorMessage(
+            board.error,
+            "Couldn’t load the board. Please try again.",
+          )}
         </InlineError>
       ) : null}
 

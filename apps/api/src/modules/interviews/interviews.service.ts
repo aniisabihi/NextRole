@@ -18,6 +18,15 @@ import type { CreateInterviewBody, UpdateInterviewBody } from "./schemas.js";
 
 const INTERVIEW_CAP = 50;
 
+async function lockInterviewCap(
+  tx: Prisma.TransactionClient,
+  applicationId: string,
+) {
+  await tx.$executeRaw`
+    SELECT pg_advisory_xact_lock(hashtext(${`interview-cap:${applicationId}`}))
+  `;
+}
+
 function normalizeOptionalString(
   value: string | null | undefined,
 ): string | null {
@@ -36,7 +45,7 @@ function resolveTypeLabel(
       throw new AppError(
         "VALIDATION_ERROR",
         400,
-        "typeLabel is required when type is OTHER",
+        "Enter a label when interview type is Other.",
       );
     }
     return label.slice(0, 100);
@@ -79,12 +88,13 @@ export async function createInterview(
   const effects = newReminderEffects();
 
   const created = await prisma.$transaction(async (tx) => {
+    await lockInterviewCap(tx, applicationId);
     const count = await tx.interview.count({ where: { applicationId } });
     if (count >= INTERVIEW_CAP) {
       throw new AppError(
         "INTERVIEW_LIMIT_EXCEEDED",
         400,
-        `Maximum of ${INTERVIEW_CAP} interviews per application`,
+        `You can add at most ${INTERVIEW_CAP} interviews per application.`,
       );
     }
 
@@ -136,7 +146,7 @@ export async function updateInterview(
     where: { id, applicationId },
   });
   if (!existing) {
-    throw new AppError("NOT_FOUND", 404, "Interview not found");
+    throw new AppError("NOT_FOUND", 404, "Interview not found.");
   }
 
   if (existing.status !== "SCHEDULED") {
@@ -151,7 +161,7 @@ export async function updateInterview(
       throw new AppError(
         "INTERVIEW_TERMINAL_FIELDS_LOCKED",
         400,
-        "scheduledAt, type and typeLabel cannot be changed on a finished interview",
+        "Schedule and type can’t be changed after an interview is finished.",
       );
     }
   }
@@ -269,7 +279,7 @@ export async function deleteInterview(
     where: { id, applicationId },
   });
   if (!existing) {
-    throw new AppError("NOT_FOUND", 404, "Interview not found");
+    throw new AppError("NOT_FOUND", 404, "Interview not found.");
   }
 
   const effects = newReminderEffects();
@@ -288,7 +298,7 @@ export async function deleteInterview(
       where: { id, applicationId },
     });
     if (result.count !== 1) {
-      throw new AppError("NOT_FOUND", 404, "Interview not found");
+      throw new AppError("NOT_FOUND", 404, "Interview not found.");
     }
   });
   await flushReminderEffects(effects);

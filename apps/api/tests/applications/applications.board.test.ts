@@ -462,9 +462,13 @@ describe("applications HTTP: board order", () => {
         {
           id: b.id,
           code: "ALREADY_IN_STATUS",
-          message: "Already in target status",
+          message: "Already in that status.",
         },
-        { id: "missing", code: "NOT_FOUND", message: "Application not found" },
+        {
+          id: "missing",
+          code: "NOT_FOUND",
+          message: "Application not found.",
+        },
       ]);
     });
 

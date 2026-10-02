@@ -1,5 +1,6 @@
 import type { ApplicationStatus } from "@prisma/client";
 import { AppError } from "../../shared/errors/app-error.js";
+import { humanizeEnum } from "../../shared/copy/humanize.js";
 
 export const TERMINAL = new Set<ApplicationStatus>([
   "OFFER",
@@ -35,6 +36,6 @@ export function assertTransition(
   throw new AppError(
     "INVALID_STATUS_TRANSITION",
     400,
-    `Cannot transition from ${from} to ${to}`,
+    `You can’t change status from ${humanizeEnum(from)} to ${humanizeEnum(to)}.`,
   );
 }

@@ -15,10 +15,18 @@ export function assertCsrf(
 
   if (cookieBuf.length !== headerBuf.length) {
     timingSafeEqual(cookieBuf, Buffer.alloc(cookieBuf.length));
-    throw new AppError("CSRF_INVALID", 403, "Invalid CSRF token");
+    throw new AppError(
+      "CSRF_INVALID",
+      403,
+      "Your session expired. Refresh the page and try again.",
+    );
   }
 
   if (cookieBuf.length === 0 || !timingSafeEqual(cookieBuf, headerBuf)) {
-    throw new AppError("CSRF_INVALID", 403, "Invalid CSRF token");
+    throw new AppError(
+      "CSRF_INVALID",
+      403,
+      "Your session expired. Refresh the page and try again.",
+    );
   }
 }

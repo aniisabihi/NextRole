@@ -22,7 +22,7 @@ import {
   workplaceTypeLabel,
 } from "../lib/labels";
 import { InterviewsSection } from "../components/interviews/InterviewsSection";
-import { apiClient } from "../lib/apiClient";
+import { apiClient, userErrorMessage } from "../lib/apiClient";
 import {
   formatInterviewActivity,
   isInterviewActivity,
@@ -32,6 +32,7 @@ import {
   formatReminderActivity,
   isReminderActivity,
 } from "../lib/reminder-activity";
+import { canTransition } from "../lib/status-transitions";
 import {
   APPLICATION_STATUSES,
   EMPLOYMENT_TYPES,
@@ -302,10 +303,16 @@ export function ApplicationDetailPage() {
   });
 
   useEffect(() => {
-    if (appQuery.data?.application) {
-      setForm(formFromApplication(appQuery.data.application));
-    }
-  }, [appQuery.data]);
+    setForm(null);
+    setError(null);
+    setFieldErrors({});
+  }, [id]);
+
+  useEffect(() => {
+    const application = appQuery.data?.application;
+    if (!application || application.id !== id) return;
+    setForm(formFromApplication(application));
+  }, [id, appQuery.data?.application.id, appQuery.data?.application.updatedAt]);
 
   const saveMutation = useMutation({
     mutationFn: async (patch: Record<string, unknown>) => {
@@ -327,7 +334,7 @@ export function ApplicationDetailPage() {
       ]);
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(userErrorMessage(err, "Couldn’t save changes. Please try again."));
     },
   });
 
@@ -353,7 +360,7 @@ export function ApplicationDetailPage() {
     }
     const patch = buildPatch(form, appQuery.data.application);
     if (Object.keys(patch).length === 0) {
-      setError("No changes to save");
+      setError("Nothing to save — no fields changed.");
       return;
     }
     await saveMutation.mutateAsync(patch);
@@ -371,9 +378,10 @@ export function ApplicationDetailPage() {
     return (
       <AppShell>
         <InlineError>
-          {appQuery.error instanceof Error
-            ? appQuery.error.message
-            : "Could not load application."}
+          {userErrorMessage(
+            appQuery.error,
+            "Couldn’t load this application. Please try again.",
+          )}
         </InlineError>
         <p className="text-sm">
           <Link
@@ -387,7 +395,7 @@ export function ApplicationDetailPage() {
     );
   }
 
-  if (appQuery.isLoading || !form) {
+  if (appQuery.isLoading || !form || !appQuery.data) {
     return (
       <AppShell>
         <LoadingBlock label="Loading application…" />
@@ -396,6 +404,7 @@ export function ApplicationDetailPage() {
   }
 
   const activities = activitiesQuery.data?.items ?? [];
+  const savedStatus = appQuery.data.application.status;
 
   return (
     <AppShell>
@@ -471,7 +480,9 @@ export function ApplicationDetailPage() {
                 setField("status", e.target.value as ApplicationStatus)
               }
             >
-              {APPLICATION_STATUSES.map((s) => (
+              {APPLICATION_STATUSES.filter((s) =>
+                canTransition(savedStatus, s),
+              ).map((s) => (
                 <option key={s} value={s}>
                   {statusLabel(s)}
                 </option>

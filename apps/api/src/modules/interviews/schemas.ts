@@ -46,7 +46,7 @@ export const updateInterviewSchema = z
     notes: optionalNullableString(10000),
   })
   .refine((body) => Object.keys(body).length > 0, {
-    message: "At least one field is required",
+    message: "Include at least one field to update.",
   });
 
 export type CreateInterviewBody = z.infer<typeof createInterviewSchema>;

@@ -9,7 +9,7 @@ const body = z
 
 const futureDueAt = scheduledAtSchema.refine(
   (s) => new Date(s).getTime() > Date.now(),
-  "dueAt must be in the future",
+  "Choose a due date and time in the future.",
 );
 
 export const createManualReminderSchema = z.object({
@@ -26,13 +26,16 @@ export const updateReminderSchema = z
     status: z.literal("DISMISSED").optional(),
   })
   .refine((v) => Object.keys(v).length > 0, {
-    message: "At least one field is required",
+    message: "Include at least one field to update.",
   })
   .refine(
     (v) =>
       v.status === undefined ||
       (v.title === undefined && v.body === undefined && v.dueAt === undefined),
-    { message: "status cannot be combined with other fields" },
+    {
+      message:
+        "When dismissing a reminder, don’t change other fields at the same time.",
+    },
   );
 
 export const listRemindersQuerySchema = z.object({
