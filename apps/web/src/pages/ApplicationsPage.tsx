@@ -3,7 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { AppShell } from "../components/AppShell";
 import { Button, ButtonLink } from "../components/ui/Button";
+import { EmptyState } from "../components/ui/EmptyState";
 import { Field, TextInput, TextSelect } from "../components/ui/Field";
+import { InlineError } from "../components/ui/InlineError";
+import { LoadingBlock } from "../components/ui/LoadingBlock";
 import { PageHeader } from "../components/ui/PageHeader";
 import { PriorityChip, StatusChip } from "../components/ui/StatusChip";
 import { Surface } from "../components/ui/Surface";
@@ -84,6 +87,10 @@ export function ApplicationsPage() {
   const totalPages = list.data
     ? Math.max(1, Math.ceil(list.data.total / list.data.pageSize))
     : 1;
+
+  const hasFilters = Boolean(
+    q.trim() || status || employmentType || workplaceType || priority,
+  );
 
   function onFilterChange<T>(setter: (value: T) => void, value: T) {
     setter(value);
@@ -188,24 +195,37 @@ export function ApplicationsPage() {
         </Field>
       </Surface>
 
-      {list.isPending ? <p className="text-ink-muted">Loading…</p> : null}
+      {list.isPending ? <LoadingBlock label="Loading applications…" /> : null}
       {list.isError ? (
-        <p className="text-status-rejected-ink">
+        <InlineError>
           {list.error instanceof Error
             ? list.error.message
             : "Could not load applications."}
-        </p>
+        </InlineError>
       ) : null}
 
       {list.data ? (
         <>
-          <p className="text-sm text-ink-muted">
+          <p role="status" className="text-sm text-ink-muted">
             {list.data.total} result{list.data.total === 1 ? "" : "s"}
           </p>
           {list.data.items.length === 0 ? (
-            <Surface>
-              <p className="text-ink-muted">No applications yet.</p>
-            </Surface>
+            hasFilters ? (
+              <EmptyState
+                title="No matches"
+                description="No applications match these filters. Try clearing a filter or searching differently."
+              />
+            ) : (
+              <EmptyState
+                title="No applications yet"
+                description="Create your first application to start tracking your search."
+                action={
+                  <ButtonLink to="/applications/new">
+                    New application
+                  </ButtonLink>
+                }
+              />
+            )
           ) : (
             <ul className="flex flex-col gap-2">
               {list.data.items.map((app) => (

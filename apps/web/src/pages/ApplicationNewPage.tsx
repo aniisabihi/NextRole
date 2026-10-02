@@ -8,6 +8,7 @@ import {
   TextSelect,
   TextTextarea,
 } from "../components/ui/Field";
+import { InlineError } from "../components/ui/InlineError";
 import { PageHeader } from "../components/ui/PageHeader";
 import { Surface } from "../components/ui/Surface";
 import { apiClient } from "../lib/apiClient";
@@ -39,6 +40,10 @@ export function ApplicationNewPage() {
   const [jobUrl, setJobUrl] = useState("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    company?: string;
+    title?: string;
+  }>({});
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -48,6 +53,18 @@ export function ApplicationNewPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    const nextErrors: { company?: string; title?: string } = {};
+    if (!company.trim()) nextErrors.company = "Company is required.";
+    if (!title.trim()) nextErrors.title = "Title is required.";
+    setFieldErrors(nextErrors);
+    if (nextErrors.company || nextErrors.title) {
+      document
+        .getElementById(
+          nextErrors.company ? "app-new-company" : "app-new-title",
+        )
+        ?.focus();
+      return;
+    }
     setSubmitting(true);
     try {
       const body: Record<string, string> = {
@@ -88,16 +105,18 @@ export function ApplicationNewPage() {
       />
       <Surface as="form" className="flex flex-col gap-5" onSubmit={onSubmit}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Company">
+          <Field label="Company" error={fieldErrors.company}>
             <TextInput
+              id="app-new-company"
               required
               maxLength={200}
               value={company}
               onChange={(e) => setCompany(e.target.value)}
             />
           </Field>
-          <Field label="Title">
+          <Field label="Title" error={fieldErrors.title}>
             <TextInput
+              id="app-new-title"
               required
               maxLength={200}
               value={title}
@@ -181,12 +200,8 @@ export function ApplicationNewPage() {
             onChange={(e) => setNotes(e.target.value)}
           />
         </Field>
-        {error ? (
-          <p className="text-sm text-status-rejected-ink" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <Button type="submit" disabled={submitting}>
+        {error ? <InlineError>{error}</InlineError> : null}
+        <Button type="submit" loading={submitting}>
           {submitting ? "Creating…" : "Create"}
         </Button>
       </Surface>
