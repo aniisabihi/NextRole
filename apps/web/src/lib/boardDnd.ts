@@ -13,6 +13,13 @@ import {
 export const columnId = (status: ApplicationStatus) => `column:${status}`;
 export const cellId = (status: ApplicationStatus, priority: Priority) =>
   `cell:${status}:${priority}`;
+
+/** Drag handle accessible name. Company + title only (no interview text). */
+export const dragHandleLabel = (
+  app: Pick<Application, "company" | "title">,
+  selected: boolean,
+) => `Drag ${app.company}, ${app.title}${selected ? ", selected" : ""}`;
+
 export const cardId = (applicationId: string) => `card:${applicationId}`;
 
 export type ParsedId =

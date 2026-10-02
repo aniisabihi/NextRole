@@ -53,7 +53,7 @@ export function BoardCell({
           }`}
         >
           {items.length === 0 ? (
-            <li className="flex min-h-11 items-center px-1 text-xs text-ink-faint">
+            <li className="flex min-h-11 items-center rounded-[var(--radius-control)] border border-dashed border-border-strong/60 px-3 text-xs text-ink-muted">
               {filtered ? "No matching applications" : "No applications"}
             </li>
           ) : (

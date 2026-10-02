@@ -4,6 +4,7 @@ import {
   cardId,
   cellId,
   columnId,
+  dragHandleLabel,
   guardFilteredBoardAction,
   parseDndId,
   resolveDrop,
@@ -209,5 +210,23 @@ describe("guardFilteredBoardAction", () => {
     expect(guardFilteredBoardAction({ type: "unsupported" }, true)).toBe(
       "allow",
     );
+  });
+});
+
+describe("dragHandleLabel", () => {
+  const a = {
+    ...app("x", "SAVED", "LOW", 0),
+    company: "Acme",
+    title: "Engineer",
+    nextInterviewAt: "2026-10-05T09:30:00.000Z",
+  } as Application;
+  it("uses company and title only", () => {
+    expect(dragHandleLabel(a, false)).toBe("Drag Acme, Engineer");
+  });
+  it("adds selected suffix", () => {
+    expect(dragHandleLabel(a, true)).toBe("Drag Acme, Engineer, selected");
+  });
+  it("never includes interview text", () => {
+    expect(dragHandleLabel(a, false)).not.toMatch(/interview|2026|Oct/i);
   });
 });

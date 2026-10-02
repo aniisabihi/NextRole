@@ -16,7 +16,8 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { AppShell } from "../components/AppShell";
-import { Button } from "../components/ui/Button";
+import { Button, ButtonLink } from "../components/ui/Button";
+import { EmptyState } from "../components/ui/EmptyState";
 import { InlineError } from "../components/ui/InlineError";
 import { LoadingBlock } from "../components/ui/LoadingBlock";
 import { PageHeader } from "../components/ui/PageHeader";
@@ -96,6 +97,8 @@ export function BoardPage() {
     upcomingInterviewOnly: false,
   });
   const filtersActive = hasActiveBoardFilters(filters);
+  const clearFilters = () =>
+    setFilters({ priorities: [], upcomingInterviewOnly: false });
 
   const allItems = board.data?.items;
   const fullCells = useMemo(
@@ -474,7 +477,7 @@ export function BoardPage() {
         </InlineError>
       ) : null}
 
-      {board.data ? (
+      {board.data && board.data.items.length > 0 ? (
         <BoardToolbar filters={filters} onChange={setFilters} />
       ) : null}
 
@@ -488,7 +491,25 @@ export function BoardPage() {
         </Surface>
       ) : null}
 
-      {cells ? (
+      {board.data && board.data.items.length === 0 ? (
+        <EmptyState
+          title="No applications yet"
+          description="Create your first application to start tracking your search."
+          action={
+            <ButtonLink to="/applications/new">New application</ButtonLink>
+          }
+        />
+      ) : board.data && visibleCount === 0 ? (
+        <EmptyState
+          title="No matches"
+          description="No applications on the board match these filters."
+          action={
+            <Button type="button" variant="secondary" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          }
+        />
+      ) : cells ? (
         <DndContext
           sensors={sensors}
           collisionDetection={collisionDetection}
