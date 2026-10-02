@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "../../lib/apiClient";
+import { apiClient, userErrorMessage } from "../../lib/apiClient";
 import {
   fromDatetimeLocal,
   toDatetimeLocal,
@@ -106,7 +106,7 @@ function formFromInterview(i: Interview): InterviewFormState {
 }
 
 function errMessage(err: unknown, fallback: string): string {
-  return err instanceof Error ? err.message : fallback;
+  return userErrorMessage(err, fallback);
 }
 
 function LocationOrUrl({ value }: { value: string }) {
@@ -281,6 +281,13 @@ export function InterviewsSection({
   const [successAnnounce, setSuccessAnnounce] = useState("");
   const [pendingFocus, setPendingFocus] = useState<PendingFocus>(null);
 
+  useEffect(() => {
+    setPanel("closed");
+    setMutationError(null);
+    setSuccessAnnounce("");
+    setPendingFocus(null);
+  }, [applicationId]);
+
   const headingRef = useRef<HTMLHeadingElement>(null);
   const addRef = useRef<HTMLButtonElement>(null);
   const editRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -403,7 +410,9 @@ export function InterviewsSection({
       setPendingFocus({ kind: "add" });
       setSuccessAnnounce("Interview saved");
     } catch (err) {
-      setMutationError(errMessage(err, "Could not save interview"));
+      setMutationError(
+        errMessage(err, "Couldn’t save the interview. Please try again."),
+      );
     }
   }
 
@@ -430,7 +439,9 @@ export function InterviewsSection({
       setPendingFocus({ kind: "edit", id: server.id });
       setSuccessAnnounce("Interview saved");
     } catch (err) {
-      setMutationError(errMessage(err, "Could not save interview"));
+      setMutationError(
+        errMessage(err, "Couldn’t save the interview. Please try again."),
+      );
     }
   }
 
@@ -456,7 +467,9 @@ export function InterviewsSection({
       setPendingFocus({ kind: "edit", id: i.id });
       setSuccessAnnounce(`Interview marked ${label}`);
     } catch (err) {
-      setMutationError(errMessage(err, "Could not update status"));
+      setMutationError(
+        errMessage(err, "Couldn’t update the status. Please try again."),
+      );
     }
   }
 
@@ -476,7 +489,9 @@ export function InterviewsSection({
       setPendingFocus({ kind: "heading" });
       setSuccessAnnounce("Interview deleted");
     } catch (err) {
-      setMutationError(errMessage(err, "Could not delete interview"));
+      setMutationError(
+        errMessage(err, "Couldn’t delete the interview. Please try again."),
+      );
     }
   }
 
@@ -616,7 +631,10 @@ export function InterviewsSection({
       ) : interviewsQuery.isError ? (
         <div className="flex flex-wrap items-center gap-3">
           <InlineError>
-            {errMessage(interviewsQuery.error, "Could not load interviews.")}
+            {errMessage(
+              interviewsQuery.error,
+              "Couldn’t load interviews. Please try again.",
+            )}
           </InlineError>
           <button
             className={BTN}

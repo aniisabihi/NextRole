@@ -1,5 +1,6 @@
 import type { InterviewStatus } from "@prisma/client";
 import { AppError } from "../../shared/errors/app-error.js";
+import { humanizeEnum } from "../../shared/copy/humanize.js";
 
 export function canTransitionInterviewStatus(
   from: InterviewStatus,
@@ -20,7 +21,7 @@ export function assertInterviewTransition(
     throw new AppError(
       "INVALID_INTERVIEW_STATUS_TRANSITION",
       400,
-      `Cannot change interview status from ${from} to ${to}`,
+      `You can’t change that interview to ${humanizeEnum(to)}.`,
     );
   }
 }

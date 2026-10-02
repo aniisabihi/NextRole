@@ -167,6 +167,17 @@ describe("resolveMultiDrop", () => {
     ).toMatchObject({ type: "bulk", toStatus: "APPLIED" });
   });
 
+  it("filters ids that cannot transition to target status", () => {
+    expect(resolveMultiDrop(cells, ["a", "e"], columnId("SAVED"))).toEqual({
+      type: "bulk",
+      ids: ["a"],
+      toStatus: "SAVED",
+    });
+    expect(resolveMultiDrop(cells, ["e"], columnId("SAVED"))).toEqual({
+      type: "none",
+    });
+  });
+
   it("no target / unknown ids → none", () => {
     expect(resolveMultiDrop(cells, ["a"], null)).toEqual({ type: "none" });
     expect(resolveMultiDrop(cells, ["zzz"], columnId("OFFER"))).toEqual({
@@ -192,8 +203,14 @@ describe("guardFilteredBoardAction", () => {
   it("blocks reorder when filtered", () => {
     expect(guardFilteredBoardAction(reorder, true)).toBe("block-reorder");
   });
-  it("allows reorder when unfiltered", () => {
+  it("blocks reorder when board truncated", () => {
+    expect(guardFilteredBoardAction(reorder, false, true)).toBe(
+      "block-reorder",
+    );
+  });
+  it("allows reorder when unfiltered and complete", () => {
     expect(guardFilteredBoardAction(reorder, false)).toBe("allow");
+    expect(guardFilteredBoardAction(reorder, false, false)).toBe("allow");
   });
   it("allows update and bulk when filtered", () => {
     expect(guardFilteredBoardAction(update, true)).toBe("allow");

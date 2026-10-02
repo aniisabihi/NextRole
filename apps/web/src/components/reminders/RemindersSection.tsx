@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "../../lib/apiClient";
+import { apiClient, userErrorMessage } from "../../lib/apiClient";
 import {
   fromDatetimeLocal,
   toDatetimeLocal,
@@ -122,6 +122,11 @@ export function RemindersSection({ applicationId }: { applicationId: string }) {
   const [panel, setPanel] = useState<Panel>("closed");
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    setPanel("closed");
+    setError(null);
+  }, [applicationId]);
+
   const query = useQuery({
     queryKey: ["reminders", applicationId],
     queryFn: () =>
@@ -151,7 +156,10 @@ export function RemindersSection({ applicationId }: { applicationId: string }) {
       setPanel("closed");
       await invalidate();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Failed"),
+    onError: (err) =>
+      setError(
+        userErrorMessage(err, "Couldn’t save the reminder. Please try again."),
+      ),
   });
 
   const update = useMutation({
@@ -174,7 +182,10 @@ export function RemindersSection({ applicationId }: { applicationId: string }) {
       setPanel("closed");
       await invalidate();
     },
-    onError: (err) => setError(err instanceof Error ? err.message : "Failed"),
+    onError: (err) =>
+      setError(
+        userErrorMessage(err, "Couldn’t save the reminder. Please try again."),
+      ),
   });
 
   const dismiss = useMutation({
@@ -185,14 +196,20 @@ export function RemindersSection({ applicationId }: { applicationId: string }) {
         body: JSON.stringify({ status: "DISMISSED" }),
       }),
     onSuccess: invalidate,
-    onError: (err) => setError(err instanceof Error ? err.message : "Failed"),
+    onError: (err) =>
+      setError(
+        userErrorMessage(err, "Couldn’t dismiss the reminder. Please try again."),
+      ),
   });
 
   const remove = useMutation({
     mutationFn: (id: string) =>
       apiClient<void>(`/api/reminders/${id}`, { method: "DELETE" }),
     onSuccess: invalidate,
-    onError: (err) => setError(err instanceof Error ? err.message : "Failed"),
+    onError: (err) =>
+      setError(
+        userErrorMessage(err, "Couldn’t delete the reminder. Please try again."),
+      ),
   });
 
   function confirmRemove(id: string) {

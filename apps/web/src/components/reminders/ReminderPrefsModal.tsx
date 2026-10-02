@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type RefObject } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiClient } from "../../lib/apiClient";
+import { apiClient, userErrorMessage } from "../../lib/apiClient";
 import {
   REMINDER_FOLLOW_UP_DAYS_MAX,
   REMINDER_FOLLOW_UP_DAYS_MIN,
@@ -41,7 +41,9 @@ function PrefsForm({
       onClose();
     },
     onError: (err) => {
-      setError(err instanceof Error ? err.message : "Save failed");
+      setError(
+        userErrorMessage(err, "Couldn’t save settings. Please try again."),
+      );
     },
   });
 

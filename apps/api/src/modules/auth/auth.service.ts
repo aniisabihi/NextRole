@@ -1,6 +1,7 @@
 import type { FastifyReply } from "fastify";
 import { prisma } from "../../db/prisma.js";
 import { AppError } from "../../shared/errors/app-error.js";
+import { isUniqueViolation } from "../../shared/errors/prisma.js";
 import { clearAuthCookies, setAuthCookies } from "./cookies.js";
 import { createCsrfToken } from "./csrf.js";
 import {
@@ -30,17 +31,29 @@ export async function register(
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    throw new AppError("EMAIL_TAKEN", 409, "Email already registered");
+    throw new AppError("EMAIL_TAKEN", 409, "That email is already registered.");
   }
 
   const passwordHash = await hashPassword(input.password);
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      name: input.name,
-    },
-  });
+  let user;
+  try {
+    user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        name: input.name,
+      },
+    });
+  } catch (err) {
+    if (isUniqueViolation(err)) {
+      throw new AppError(
+        "EMAIL_TAKEN",
+        409,
+        "That email is already registered.",
+      );
+    }
+    throw err;
+  }
 
   const { raw: refresh } = await createSession(user.id);
   const access = await signAccessToken(user.id);
@@ -59,12 +72,20 @@ export async function login(
 
   if (!user) {
     await verifyPassword(await ensureDummyPasswordHash(), input.password);
-    throw new AppError("INVALID_CREDENTIALS", 401, "Invalid credentials");
+    throw new AppError(
+      "INVALID_CREDENTIALS",
+      401,
+      "Email or password is incorrect.",
+    );
   }
 
   const ok = await verifyPassword(user.passwordHash, input.password);
   if (!ok) {
-    throw new AppError("INVALID_CREDENTIALS", 401, "Invalid credentials");
+    throw new AppError(
+      "INVALID_CREDENTIALS",
+      401,
+      "Email or password is incorrect.",
+    );
   }
 
   const { raw: refresh } = await createSession(user.id);
@@ -80,7 +101,7 @@ export async function logout(
   refreshRaw: string | undefined,
 ): Promise<void> {
   if (!refreshRaw) {
-    throw new AppError("UNAUTHORIZED", 401, "Unauthorized");
+    throw new AppError("UNAUTHORIZED", 401, "Please sign in to continue.");
   }
   await revokeSessionByRaw(refreshRaw);
   clearAuthCookies(reply);
@@ -93,7 +114,7 @@ export async function refresh(
 ): Promise<void> {
   if (!refreshRaw) {
     clearAuthCookies(reply);
-    throw new AppError("UNAUTHORIZED", 401, "Unauthorized");
+    throw new AppError("UNAUTHORIZED", 401, "Please sign in to continue.");
   }
 
   try {

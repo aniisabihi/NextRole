@@ -179,17 +179,25 @@ export function resolveMultiDrop(
   if (over.kind !== "column" && selected.every((a) => a.status === toStatus)) {
     return { type: "unsupported" };
   }
-  return { type: "bulk", ids: selected.map((a) => a.id), toStatus };
+  const ids = selected
+    .filter((a) => canTransition(a.status, toStatus))
+    .map((a) => a.id);
+  if (ids.length === 0) return { type: "none" };
+  return { type: "bulk", ids, toStatus };
 }
 
 /**
- * While board filters are active the visible cell lists are partial, but the
- * reorder API needs the full cell's `orderedIds`. Block reorder only; status/
- * priority updates and bulk status moves stay allowed.
+ * While board filters are active — or the board list is truncated (pageSize
+ * cap) — visible cell lists are partial, but the reorder API needs the full
+ * cell's `orderedIds`. Block reorder only; status/priority updates and bulk
+ * status moves stay allowed.
  */
 export function guardFilteredBoardAction(
   action: DropAction | MultiDropAction,
   filtersActive: boolean,
+  boardTruncated = false,
 ): "allow" | "block-reorder" {
-  return filtersActive && action.type === "reorder" ? "block-reorder" : "allow";
+  return (filtersActive || boardTruncated) && action.type === "reorder"
+    ? "block-reorder"
+    : "allow";
 }

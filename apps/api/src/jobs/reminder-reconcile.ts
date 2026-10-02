@@ -7,6 +7,8 @@ import {
 } from "./reminder-queue.js";
 
 export const RECONCILE_INTERVAL_MS = 60_000;
+/** Page size for SCHEDULED sweeps — avoids loading every row into memory. */
+export const RECONCILE_PAGE_SIZE = 500;
 
 export type ReconcileStats = {
   checked: number;
@@ -25,41 +27,52 @@ export type ReconcileStats = {
 export async function reconcileScheduledReminders(
   now: Date = new Date(),
 ): Promise<ReconcileStats> {
-  const rows = await prisma.reminder.findMany({
-    where: { status: "SCHEDULED" },
-    select: { id: true, dueAt: true, bullJobId: true },
-    orderBy: { dueAt: "asc" },
-  });
   const stats: ReconcileStats = {
-    checked: rows.length,
+    checked: 0,
     enqueued: 0,
     failed: 0,
   };
 
-  for (const row of rows) {
-    try {
-      const expected = reminderJobId(row.id, row.dueAt);
-      if (row.bullJobId === expected && (await reminderJobExists(expected))) {
-        continue;
+  let skip = 0;
+  for (;;) {
+    const rows = await prisma.reminder.findMany({
+      where: { status: "SCHEDULED" },
+      select: { id: true, dueAt: true, bullJobId: true },
+      orderBy: [{ dueAt: "asc" }, { id: "asc" }],
+      take: RECONCILE_PAGE_SIZE,
+      skip,
+    });
+    if (rows.length === 0) break;
+    stats.checked += rows.length;
+
+    for (const row of rows) {
+      try {
+        const expected = reminderJobId(row.id, row.dueAt);
+        if (row.bullJobId === expected && (await reminderJobExists(expected))) {
+          continue;
+        }
+        const bullJobId = await enqueueReminder(row, now);
+        const res = await prisma.reminder.updateMany({
+          where: { id: row.id, status: "SCHEDULED", dueAt: row.dueAt },
+          data: { bullJobId },
+        });
+        if (res.count !== 1) {
+          // Fired/dismissed/rescheduled meanwhile: drop the job just added.
+          await removeReminderJob(bullJobId);
+          continue;
+        }
+        stats.enqueued++;
+      } catch (err) {
+        stats.failed++;
+        console.error(
+          `[reconcile] reminder ${row.id} failed:`,
+          err instanceof Error ? err.message : err,
+        );
       }
-      const bullJobId = await enqueueReminder(row, now);
-      const res = await prisma.reminder.updateMany({
-        where: { id: row.id, status: "SCHEDULED", dueAt: row.dueAt },
-        data: { bullJobId },
-      });
-      if (res.count !== 1) {
-        // Fired/dismissed/rescheduled meanwhile: drop the job just added.
-        await removeReminderJob(bullJobId);
-        continue;
-      }
-      stats.enqueued++;
-    } catch (err) {
-      stats.failed++;
-      console.error(
-        `[reconcile] reminder ${row.id} failed:`,
-        err instanceof Error ? err.message : err,
-      );
     }
+
+    if (rows.length < RECONCILE_PAGE_SIZE) break;
+    skip += rows.length;
   }
   return stats;
 }

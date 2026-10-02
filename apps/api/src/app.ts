@@ -22,6 +22,8 @@ export async function buildApp() {
 
   const app = Fastify({
     logger: env.NODE_ENV !== "test",
+    // Behind reverse proxies, use X-Forwarded-For for rate-limit client IP.
+    trustProxy: true,
   });
 
   await app.register(helmet);

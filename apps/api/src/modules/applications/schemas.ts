@@ -20,7 +20,7 @@ const httpHttpsUrl = z
   .max(2000)
   .url()
   .refine((url) => url.startsWith("http://") || url.startsWith("https://"), {
-    message: "URL must start with http:// or https://",
+    message: "Enter a URL starting with http:// or https://.",
   });
 
 const optionalJobUrl = z.preprocess(emptyToUndefined, httpHttpsUrl.optional());
@@ -37,7 +37,7 @@ export const optionalDateInputSchema = z
     try {
       return parseOptionalDateInput(value);
     } catch {
-      ctx.addIssue({ code: "custom", message: "Invalid date" });
+      ctx.addIssue({ code: "custom", message: "Enter a valid date." });
       return z.NEVER;
     }
   });
@@ -111,7 +111,7 @@ export const updateApplicationSchema = z
       .optional(),
   })
   .refine((body) => Object.keys(body).length > 0, {
-    message: "At least one field is required",
+    message: "Include at least one field to update.",
   });
 
 export const listApplicationsQuerySchema = z.object({

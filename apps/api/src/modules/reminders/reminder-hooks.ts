@@ -7,6 +7,7 @@ import type {
 import { prisma } from "../../db/prisma.js";
 import { followUpDueAt, interviewDueAt } from "./reminder-schedule.js";
 import { safeEnqueue, safeRemoveJobs } from "./reminder-jobs.js";
+import { isUniqueViolation } from "../../shared/errors/prisma.js";
 
 type Tx = Prisma.TransactionClient;
 
@@ -125,18 +126,23 @@ export async function rescheduleInterviewReminder(
   if (!dueAt) return; // lead already passed: skip
 
   const label = interview.typeLabel ?? interview.type;
-  const row = await tx.reminder.create({
-    data: {
-      userId,
-      applicationId: interview.applicationId,
-      kind: "INTERVIEW",
-      interviewId: interview.id,
-      title: `Interview reminder: ${company} — ${label}`,
-      dueAt,
-      status: "SCHEDULED",
-    },
-  });
-  effects.enqueue.push(row);
+  try {
+    const row = await tx.reminder.create({
+      data: {
+        userId,
+        applicationId: interview.applicationId,
+        kind: "INTERVIEW",
+        interviewId: interview.id,
+        title: `Interview reminder: ${company} — ${label}`,
+        dueAt,
+        status: "SCHEDULED",
+      },
+    });
+    effects.enqueue.push(row);
+  } catch (err) {
+    // Concurrent reschedule won the partial unique index — leave their row.
+    if (!isUniqueViolation(err)) throw err;
+  }
 }
 
 // ---------------------------------------------------------------- FOLLOW_UP
@@ -187,17 +193,22 @@ export async function syncFollowUpOnStatusChange(
     select: { followUpDays: true },
   });
   if (!user) return;
-  const row = await tx.reminder.create({
-    data: {
-      userId: application.userId,
-      applicationId: application.id,
-      kind: "FOLLOW_UP",
-      title: `Follow up: ${application.company}`,
-      dueAt: followUpDueAt(new Date(), user.followUpDays),
-      status: "SCHEDULED",
-    },
-  });
-  effects.enqueue.push(row);
+  try {
+    const row = await tx.reminder.create({
+      data: {
+        userId: application.userId,
+        applicationId: application.id,
+        kind: "FOLLOW_UP",
+        title: `Follow up: ${application.company}`,
+        dueAt: followUpDueAt(new Date(), user.followUpDays),
+        status: "SCHEDULED",
+      },
+    });
+    effects.enqueue.push(row);
+  } catch (err) {
+    // Concurrent status enter won the partial unique index — leave their row.
+    if (!isUniqueViolation(err)) throw err;
+  }
 }
 
 // -------------------------------------------------------------------- PREFS

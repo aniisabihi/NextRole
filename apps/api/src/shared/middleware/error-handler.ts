@@ -1,5 +1,6 @@
 import type { FastifyError, FastifyReply, FastifyRequest } from "fastify";
 import { AppError } from "../errors/app-error.js";
+import { isRecordNotFound, isUniqueViolation } from "../errors/prisma.js";
 
 export function errorHandler(
   error: FastifyError,
@@ -26,7 +27,27 @@ export function errorHandler(
     void reply.status(429).send({
       error: {
         code: "RATE_LIMITED",
-        message: "Too many requests",
+        message: "Too many attempts. Please wait a moment and try again.",
+      },
+    });
+    return;
+  }
+
+  if (isUniqueViolation(error)) {
+    void reply.status(409).send({
+      error: {
+        code: "CONFLICT",
+        message: "That change conflicts with another update. Please try again.",
+      },
+    });
+    return;
+  }
+
+  if (isRecordNotFound(error)) {
+    void reply.status(404).send({
+      error: {
+        code: "NOT_FOUND",
+        message: "We couldn’t find that item.",
       },
     });
     return;
@@ -39,15 +60,16 @@ export function errorHandler(
   } = {
     error: {
       code: "INTERNAL_ERROR",
-      message: "Internal server error",
+      message: "Something went wrong. Please try again.",
     },
   };
 
+  // Keep technical detail out of `message` (shown in the UI). Dev-only stack in details.
   if (process.env.NODE_ENV !== "production") {
-    payload.error.message = error.message || "Internal server error";
-    if (error.stack) {
-      payload.error.details = { stack: error.stack };
-    }
+    payload.error.details = {
+      cause: error.message || undefined,
+      stack: error.stack,
+    };
   }
 
   void reply.status(500).send(payload);
