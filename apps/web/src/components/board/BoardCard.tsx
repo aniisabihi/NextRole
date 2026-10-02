@@ -25,7 +25,7 @@ export function BoardCardBody({ app }: { app: Application }) {
           {priorityLabel(app.priority)}
         </span>
         {hint ? (
-          <span className="inline-flex w-fit items-center gap-1 rounded-[0.5rem] bg-accent-soft px-1.5 py-0.5 text-[0.65rem] font-medium text-accent-hover">
+          <span className="inline-flex w-fit items-center gap-1 rounded-[0.5rem] bg-accent-soft px-1.5 py-0.5 text-[0.65rem] font-medium text-ink">
             <span aria-hidden="true">◷</span>
             <span>
               <span className="sr-only">Next interview </span>

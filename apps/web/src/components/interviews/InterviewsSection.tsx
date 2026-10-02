@@ -1,11 +1,4 @@
-import {
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-} from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "../../lib/apiClient";
 import {
@@ -29,6 +22,8 @@ import {
   type InterviewStatus,
   type InterviewType,
 } from "../../lib/types";
+import { Field, TextInput, TextSelect, TextTextarea } from "../ui/Field";
+import { InlineError } from "../ui/InlineError";
 
 const BTN =
   "min-h-11 rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 text-sm text-ink transition-colors hover:bg-paper focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
@@ -36,10 +31,6 @@ const BTN_PRIMARY =
   "min-h-11 rounded-[var(--radius-control)] bg-accent px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-accent-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
 const BTN_TONAL =
   "min-h-11 rounded-[var(--radius-control)] bg-accent-soft px-3 py-2 text-sm font-medium text-accent-hover transition-colors hover:bg-accent/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink disabled:opacity-50";
-const INPUT =
-  "w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
-const SELECT =
-  "w-full rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2.5 pr-10 text-sm text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink";
 
 const TERMINAL_ACTIONS: { status: InterviewStatus; label: string }[] = [
   { status: "COMPLETED", label: "Mark completed" },
@@ -148,7 +139,6 @@ function InterviewForm({
   onSubmit: (form: InterviewFormState) => void;
   onCancel: () => void;
 }) {
-  const uid = useId();
   const terminal = interview ? isTerminal(interview) : false;
   const [form, setForm] = useState<InterviewFormState>(() =>
     interview ? formFromInterview(interview) : emptyForm(),
@@ -200,29 +190,17 @@ function InterviewForm({
         </p>
       ) : (
         <>
-          <label
-            className="flex flex-col gap-1 text-sm"
-            htmlFor={`${uid}-when`}
-          >
-            Date and time
-            <input
-              id={`${uid}-when`}
+          <Field label="Date and time">
+            <TextInput
               ref={firstRef}
-              className={INPUT}
               type="datetime-local"
               required
               value={form.scheduledAtLocal}
               onChange={(e) => set("scheduledAtLocal", e.target.value)}
             />
-          </label>
-          <label
-            className="flex flex-col gap-1 text-sm"
-            htmlFor={`${uid}-type`}
-          >
-            Type
-            <select
-              id={`${uid}-type`}
-              className={SELECT}
+          </Field>
+          <Field label="Type">
+            <TextSelect
               value={form.type}
               onChange={(e) => set("type", e.target.value as InterviewType)}
             >
@@ -231,66 +209,44 @@ function InterviewForm({
                   {INTERVIEW_TYPE_LABELS[t]}
                 </option>
               ))}
-            </select>
-          </label>
+            </TextSelect>
+          </Field>
           {form.type === "OTHER" ? (
-            <label
-              className="flex flex-col gap-1 text-sm"
-              htmlFor={`${uid}-label`}
-            >
-              Type label
-              <input
-                id={`${uid}-label`}
-                className={INPUT}
+            <Field label="Type label">
+              <TextInput
                 required
                 maxLength={100}
                 value={form.typeLabel}
                 onChange={(e) => set("typeLabel", e.target.value)}
               />
-            </label>
+            </Field>
           ) : null}
         </>
       )}
-      <label
-        className="flex flex-col gap-1 text-sm"
-        htmlFor={`${uid}-interviewer`}
-      >
-        Interviewer
-        <input
-          id={`${uid}-interviewer`}
+      <Field label="Interviewer">
+        <TextInput
           ref={terminal ? firstRef : undefined}
-          className={INPUT}
           maxLength={200}
           value={form.interviewer}
           onChange={(e) => set("interviewer", e.target.value)}
         />
-      </label>
-      <label className="flex flex-col gap-1 text-sm" htmlFor={`${uid}-loc`}>
-        Location or URL
-        <input
-          id={`${uid}-loc`}
-          className={INPUT}
+      </Field>
+      <Field label="Location or URL">
+        <TextInput
           maxLength={2000}
           value={form.locationOrUrl}
           onChange={(e) => set("locationOrUrl", e.target.value)}
         />
-      </label>
-      <label className="flex flex-col gap-1 text-sm" htmlFor={`${uid}-notes`}>
-        Notes
-        <textarea
-          id={`${uid}-notes`}
-          className={INPUT}
+      </Field>
+      <Field label="Notes">
+        <TextTextarea
           rows={3}
           maxLength={10000}
           value={form.notes}
           onChange={(e) => set("notes", e.target.value)}
         />
-      </label>
-      {shownError ? (
-        <p role="alert" className="text-sm text-status-rejected-ink">
-          {shownError}
-        </p>
-      ) : null}
+      </Field>
+      {shownError ? <InlineError>{shownError}</InlineError> : null}
       <div className="flex gap-2">
         <button className={BTN_PRIMARY} type="submit" disabled={pending}>
           {pending ? "Saving…" : "Save"}
@@ -641,9 +597,7 @@ export function InterviewsSection({
         {successAnnounce}
       </div>
       {mutationError && panel === "closed" ? (
-        <p role="alert" className="text-sm text-status-rejected-ink">
-          {mutationError}
-        </p>
+        <InlineError>{mutationError}</InlineError>
       ) : null}
 
       {panel === "create" ? (
@@ -660,10 +614,10 @@ export function InterviewsSection({
       {interviewsQuery.isLoading ? (
         <p className="text-sm text-ink-muted">Loading interviews…</p>
       ) : interviewsQuery.isError ? (
-        <div role="alert" className="flex items-center gap-3 text-sm">
-          <p className="text-status-rejected-ink">
+        <div className="flex flex-wrap items-center gap-3">
+          <InlineError>
             {errMessage(interviewsQuery.error, "Could not load interviews.")}
-          </p>
+          </InlineError>
           <button
             className={BTN}
             type="button"

@@ -60,15 +60,6 @@ export function ReminderBell() {
     );
   }, [dueCount, query.isSuccess]);
 
-  // Move focus after a dismiss re-render: next due row, else the bell toggle.
-  useEffect(() => {
-    if (focusTargetId === undefined) return;
-    const el = focusTargetId ? dismissRefs.current.get(focusTargetId) : null;
-    if (focusTargetId && !el) return; // row not rendered yet; effect re-runs on items change
-    (el ?? buttonRef.current)?.focus();
-    setFocusTargetId(undefined);
-  }, [focusTargetId, items]);
-
   const dismiss = useMutation({
     mutationFn: (id: string) =>
       apiClient<Reminder>(`/api/reminders/${id}`, {
@@ -97,6 +88,18 @@ export function ReminderBell() {
       setFocusTargetId(next ? next.id : null);
     },
   });
+
+  // Move focus after a dismiss settles: next due row, else the bell toggle.
+  // Wait for !isPending: Dismiss buttons are disabled while pending and
+  // focus() on a disabled button is a no-op that would burn the one-shot target.
+  const dismissPending = dismiss.isPending;
+  useEffect(() => {
+    if (focusTargetId === undefined || dismissPending) return;
+    const el = focusTargetId ? dismissRefs.current.get(focusTargetId) : null;
+    if (focusTargetId && !el) return; // row not rendered yet; effect re-runs on items change
+    (el ?? buttonRef.current)?.focus();
+    setFocusTargetId(undefined);
+  }, [focusTargetId, items, dismissPending]);
 
   useEffect(() => {
     if (!open) return;

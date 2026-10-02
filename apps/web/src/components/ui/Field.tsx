@@ -1,7 +1,7 @@
 import {
   cloneElement,
+  type ComponentPropsWithRef,
   useId,
-  type InputHTMLAttributes,
   type ReactElement,
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
@@ -68,7 +68,7 @@ export function Field({
 export function TextInput({
   className = "",
   ...props
-}: InputHTMLAttributes<HTMLInputElement>) {
+}: ComponentPropsWithRef<"input">) {
   return <input className={`${controlClass} ${className}`} {...props} />;
 }
 
