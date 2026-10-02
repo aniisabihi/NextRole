@@ -1,6 +1,6 @@
 # NextRole
 
-Job application tracker portfolio project. **Phase 1–5 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI, [PR #6](https://github.com/aniisabihi/NextRole/pull/6) dashboard analytics). **Phase 6 (reminders / BullMQ) done on branch `phase-6-reminders`, pending PR.** See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
+Job application tracker portfolio project. **Phase 1–5 + Soft Chromatic UI done on `main`** (auth, applications, Kanban, interviews, [PR #5](https://github.com/aniisabihi/NextRole/pull/5) UI, [PR #6](https://github.com/aniisabihi/NextRole/pull/6) dashboard analytics). **Phase 6 (reminders / BullMQ) done on `main`.** **Phase 7 (frontend polish + board redesign) done on branch `feat/phase-7-fe-polish`, PR pending.** See `docs/PROJECT_CONTEXT.md` for roadmap and handoff context.
 
 Full vision, phase status, and links to specs/plans live in **[docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)**.
 
@@ -446,3 +446,41 @@ Nav bell + dropdown (polls `GET /api/reminders` ~30–60s and on focus), Reminde
 
 - Spec: `docs/superpowers/specs/2026-10-01-nextrole-phase6-design.md`
 - Plan: `docs/superpowers/plans/2026-10-01-nextrole-phase6.md`
+
+## Phase 7 — Frontend polish + board redesign
+
+Mostly frontend. **One API exception:** `nextInterviewAt`.
+
+### Highlights
+
+- **Foundations:** `Modal` closes on Esc / close button only (backdrop click does **not** dismiss); `Field` wires `aria-invalid` + `aria-describedby`; `Button` loading state; shared `InlineError` / `Empty` / `Loading`; contrast-adjusted muted text tokens.
+- **Reminders a11y:** bell dismiss shows errors and manages focus, live-region due count, delete confirm, prefs/section error states; only `SCHEDULED` reminders are editable.
+- **Screen pass:** auth, dashboard, application list/new/detail, AppShell.
+- **Board filters (client-only):** priority toggles (`aria-pressed`, none = all) AND "Upcoming interview" toggle, applied to the loaded payload (no refetch). Truncation banner ("Showing N of M") stays; filters report shown-among-loaded. Selection drops ids hidden by a filter.
+- **Filtered board:** card reorder is disabled (no `POST /board/reorder`; live message announces it). Bulk-status / column drops still work. **Clear filters** restores reorder.
+- **Collapse:** status columns collapse (header + droppable stay mounted); state persisted per browser in `localStorage` key `nextrole.board.collapsed.v1` (JSON array of statuses, default all expanded). Dropping on a collapsed column expands it after a successful move.
+- **Board visuals:** Soft Chromatic cards, column counts, empty states, next-interview hint on cards.
+
+### API change
+
+`nextInterviewAt: string | null` is **always** present on application payloads: `GET /api/applications` items, `GET/POST/PATCH /api/applications/:id`, and bulk-status `moved[]`. Value = earliest interview with `status = SCHEDULED` and `scheduledAt >= now` (server clock, UTC ISO 8601), else `null`. Completed, cancelled, no-show, and overdue `SCHEDULED` are excluded. Computed with one batch query per request, scoped to the owner.
+
+### Known debt
+
+Primary `Button` white-on-accent contrast is ~2.89:1 (pre-existing Soft Chromatic accent token). Fixing needs a token redesign; out of scope for Phase 7.
+
+### Manual smoke (record results in PR body)
+
+1. Keyboard: login → dashboard → detail; open prefs modal, Esc closes, backdrop click does **not**; bell dismiss returns focus sensibly.
+2. Board unfiltered: reorder + bulk-status.
+3. Board filtered: reorder blocked with live message; bulk/column move still works; Clear filters.
+4. Collapse persists across reload; drop on collapsed column expands on success.
+5. ~360px viewport: horizontal scroll OK.
+6. `prefers-reduced-motion`: no jarring new motion.
+7. Contrast spot-check: muted text + board chrome.
+8. Screen reader (VoiceOver+Safari or NVDA+Firefox): bell due count + filter toggles.
+
+### Spec / plan
+
+- Spec: `docs/superpowers/specs/2026-10-02-nextrole-phase7-design.md`
+- Plan: `docs/superpowers/plans/2026-10-02-nextrole-phase7.md`
